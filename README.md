@@ -37,13 +37,14 @@ Docker fleet mode:
 | `epistemic` | `mw-corpus`, `mw-nexus`, `mw-lore` | `:4420`, `:4430`, `:4450` |
 | `portal` | `mw-mylove` | `:4460` |
 | `studio` | `mw-studio` | `:4470` |
+| `rocksoul` | `mw-rocksoul-gateway`, `mw-rocksoul-core`, `mw-rocksoul-mcp`, `mw-rocksoul-sandbox` | `:4510`, `:4520`, `:4530`, `:4540` |
 | `tunnel` | `cloudflared` | Zero-Trust outbound |
 | `proxy` | `caddy` (`Caddyfile.template`) | `:80`, `:443` |
 | `full` | All profiles combined | All above |
 
-## 16-Repo MoonWitness Sovereign Topology
+## 21-Repo MoonWitness Sovereign Topology
 
-`mw-stack` orchestrates the containerized services across the 16-repository MoonWitness ecosystem, unified by `mw-rid` OIDC SSO (`https://id.<MW_DOMAIN>`) and paired with `mw-pocket` on Android:
+`mw-stack` orchestrates the containerized services across the 21-repository MoonWitness ecosystem, unified by `mw-rid` OIDC SSO (`https://id.<MW_DOMAIN>`) and paired with `mw-pocket` on Android and `mw-rocksoul-cli`:
 
 | Layer | Repositories | Role |
 | :--- | :--- | :--- |
@@ -51,6 +52,7 @@ Docker fleet mode:
 | **Operations** | `mw-lab` (`:4400`), `mw-mission` (`:4410`), `mw-cp` (`:4440`) | Fleet lab, mission control, and control plane |
 | **SaaS & Workspace** | `mw-dock` (`:3000`), `mw-xv` (`mw-board`, `:3001`), `mw-design` (`:8080`), `mw-studio` (`:4470`) | Multi-tenant dock, board, design system, and studio |
 | **Epistemic & Portal** | `mw-corpus` (`:4420`), `mw-nexus` (`:4430`), `mw-lore` (`:4450`), `mw-mylove` (`:4460`) | Knowledge corpus, graph nexus, lore, and flagship portal (`a-l-l-a-h.com`) |
+| **Rocksoul AI** | `mw-rocksoul-cli`, `mw-rocksoul-gateway` (`:4510`), `mw-rocksoul-core` (`:4520`), `mw-rocksoul-mcp` (`:4530`), `mw-rocksoul-sandbox` (`:4540`) | Sovereign AI CLI, gateway, cognitive engine, MCP hub, and ephemeral worktree sandbox |
 | **Network & Edge** | `mw-isp` (`:8091`), `mw-stack`, `mw-pocket` | Sovereign ISP/RADIUS, fleet orchestrator, and Android companion app |
 
 ### Mobile Pairing (`mw-pocket` QR / OIDC)
@@ -69,7 +71,7 @@ mwctl status            # Inspect container status
 mwctl logs [service]    # Tail service logs
 mwctl backup            # Trigger mw-echo /api/storage/backup
 mwctl doctor            # Run mw-echo /api/desktop/doctor & /api/disk/drives
-mwctl verify            # Probe /health & OIDC contracts across all 13 services
+mwctl verify            # Probe /health & OIDC contracts across all 17 services
 mwctl profiles          # Print profile matrix
 mwctl tunnel            # Start Cloudflare tunnel
 ```

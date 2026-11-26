@@ -13,10 +13,10 @@ MoonWitness Sovereign Fleet Installer (mw-stack)
 Usage:
   curl -fsSL https://raw.githubusercontent.com/A-L-L-A-H/mw-stack/main/install.sh | bash
   curl -fsSL https://raw.githubusercontent.com/A-L-L-A-H/mw-stack/main/install.sh | MW_PROFILE=ops bash
-  ./install.sh --profile lite|id|ops|saas|isp|epistemic|portal|studio|full [--dir /opt/mw-stack] [--no-start]
+  ./install.sh --profile lite|id|ops|saas|isp|epistemic|portal|studio|rocksoul|full [--dir /opt/mw-stack] [--no-start]
 
 Options:
-  --profile <name>   Fleet profile (lite, id, ops, saas, isp, epistemic, portal, studio, tunnel, proxy, full)
+  --profile <name>   Fleet profile (lite, id, ops, saas, isp, epistemic, portal, studio, rocksoul, tunnel, proxy, full)
   --dir <path>       Installation directory (default: /opt/mw-stack)
   --no-start         Install and configure without starting containers
   -h, --help         Show this help message
@@ -61,9 +61,9 @@ fi
 
 validate_profile() {
   case "$1" in
-    lite|id|ops|saas|isp|epistemic|portal|studio|tunnel|proxy|full) return 0 ;;
+    lite|id|ops|saas|isp|epistemic|portal|studio|rocksoul|tunnel|proxy|full) return 0 ;;
     *)
-      echo "[mw-stack] Invalid profile '$1'. Allowed: lite, id, ops, saas, isp, epistemic, portal, studio, tunnel, proxy, full" >&2
+      echo "[mw-stack] Invalid profile '$1'. Allowed: lite, id, ops, saas, isp, epistemic, portal, studio, rocksoul, tunnel, proxy, full" >&2
       exit 1
       ;;
   esac
@@ -78,7 +78,8 @@ if [[ -z "$PROFILE" ]]; then
     echo "  4) saas       - postgres + mw-rid + mw-dock + mw-design + mw-board"
     echo "  5) isp        - mw-isp (:8091 + RADIUS UDP 1812/1813)"
     echo "  6) epistemic  - mw-corpus + mw-nexus + mw-lore"
-    echo "  7) full       - all services + caddy proxy + cloudflared tunnel"
+    echo "  7) rocksoul   - mw-rocksoul-gateway + core + mcp + sandbox (:4510-:4540)"
+    echo "  8) full       - all services + caddy proxy + cloudflared tunnel"
     read -r -p "Profile [lite]: " selected_profile
     case "${selected_profile:-lite}" in
       1|lite) PROFILE="lite" ;;
@@ -87,7 +88,8 @@ if [[ -z "$PROFILE" ]]; then
       4|saas) PROFILE="saas" ;;
       5|isp) PROFILE="isp" ;;
       6|epistemic) PROFILE="epistemic" ;;
-      7|full) PROFILE="full" ;;
+      7|rocksoul) PROFILE="rocksoul" ;;
+      8|full) PROFILE="full" ;;
       *) PROFILE="$selected_profile" ;;
     esac
   else

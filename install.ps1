@@ -4,7 +4,7 @@ param(
     [ValidateSet("exe", "docker")]
     [string]$Mode = "exe",
 
-    [ValidateSet("lite", "id", "ops", "saas", "isp", "epistemic", "portal", "studio", "tunnel", "proxy", "full")]
+    [ValidateSet("lite", "id", "ops", "saas", "isp", "epistemic", "portal", "studio", "rocksoul", "tunnel", "proxy", "full")]
     [string]$Profile = "lite",
 
     [string]$InstallDir = "$env:LOCALAPPDATA\MoonWitness",

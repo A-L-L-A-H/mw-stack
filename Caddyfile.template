@@ -57,3 +57,19 @@ studio.{$MW_DOMAIN:mw.local} {
 id.{$MW_DOMAIN:mw.local} {
 	reverse_proxy mw-rid:4480
 }
+
+rocksoul-gateway.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-rocksoul-gateway:4510
+}
+
+rocksoul-core.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-rocksoul-core:4520
+}
+
+rocksoul-mcp.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-rocksoul-mcp:4530
+}
+
+rocksoul-sandbox.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-rocksoul-sandbox:4540
+}

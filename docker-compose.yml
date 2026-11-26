@@ -18,6 +18,8 @@ volumes:
   mw_nexus_data:
   mw_lore_data:
   mw_rid_data:
+  mw_rocksoul_gateway_data:
+  mw_rocksoul_sandbox_data:
   mw_caddy_data:
   mw_caddy_config:
 
@@ -46,6 +48,10 @@ services:
       MW_MYLOVE_URL: "http://mw-mylove:4460"
       MW_STUDIO_URL: "http://mw-studio:4470"
       MW_RID_URL: "http://mw-rid:4480"
+      MW_ROCKSOUL_GATEWAY_URL: "http://mw-rocksoul-gateway:4510"
+      MW_ROCKSOUL_CORE_URL: "http://mw-rocksoul-core:4520"
+      MW_ROCKSOUL_MCP_URL: "http://mw-rocksoul-mcp:4530"
+      MW_ROCKSOUL_SANDBOX_URL: "http://mw-rocksoul-sandbox:4540"
       MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
       MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
@@ -341,6 +347,104 @@ services:
       MW_MISSION_URL: "http://mw-mission:4410"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_API_SECRET: "${MW_API_SECRET:-}"
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # ROCKSOUL / FULL — Rocksoul AI Gateway, Cognitive Core, MCP & Sandbox
+  # ---------------------------------------------------------------------------
+  mw-rocksoul-gateway:
+    image: ghcr.io/a-l-l-a-h/mw-rocksoul-gateway:${MW_IMAGE_TAG:-latest}
+    container_name: mw-rocksoul-gateway
+    restart: unless-stopped
+    profiles: ["rocksoul", "full"]
+    ports:
+      - "${MW_ROCKSOUL_GATEWAY_PORT:-4510}:4510"
+    environment:
+      PORT: "4510"
+      ROCKSOUL_GATEWAY_PORT: "4510"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_rocksoul_gateway_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4510/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mw-net
+
+  mw-rocksoul-core:
+    image: ghcr.io/a-l-l-a-h/mw-rocksoul-core:${MW_IMAGE_TAG:-latest}
+    container_name: mw-rocksoul-core
+    restart: unless-stopped
+    profiles: ["rocksoul", "full"]
+    ports:
+      - "${MW_ROCKSOUL_CORE_PORT:-4520}:4520"
+    environment:
+      PORT: "4520"
+      ROCKSOUL_CORE_PORT: "4520"
+      MW_ROCKSOUL_GATEWAY_URL: "http://mw-rocksoul-gateway:4510"
+      MW_ROCKSOUL_MCP_URL: "http://mw-rocksoul-mcp:4530"
+      MW_ROCKSOUL_SANDBOX_URL: "http://mw-rocksoul-sandbox:4540"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4520/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mw-net
+
+  mw-rocksoul-mcp:
+    image: ghcr.io/a-l-l-a-h/mw-rocksoul-mcp:${MW_IMAGE_TAG:-latest}
+    container_name: mw-rocksoul-mcp
+    restart: unless-stopped
+    profiles: ["rocksoul", "full"]
+    ports:
+      - "${MW_ROCKSOUL_MCP_PORT:-4530}:4530"
+    environment:
+      PORT: "4530"
+      ROCKSOUL_MCP_PORT: "4530"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_XV_URL: "http://mw-board:3001"
+      MW_CP_URL: "http://mw-cp:4440"
+      MW_ISP_URL: "http://mw-isp:8091"
+      MW_CORPUS_URL: "http://mw-corpus:4420"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4530/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mw-net
+
+  mw-rocksoul-sandbox:
+    image: ghcr.io/a-l-l-a-h/mw-rocksoul-sandbox:${MW_IMAGE_TAG:-latest}
+    container_name: mw-rocksoul-sandbox
+    restart: unless-stopped
+    profiles: ["rocksoul", "full"]
+    ports:
+      - "${MW_ROCKSOUL_SANDBOX_PORT:-4540}:4540"
+    environment:
+      PORT: "4540"
+      ROCKSOUL_SANDBOX_PORT: "4540"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://mw-echo:4310/v1/traces"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_rocksoul_sandbox_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4540/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 

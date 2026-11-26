@@ -41,7 +41,7 @@ Usage:
   mwctl logs [service]      Stream logs (all services or a specific service)
   mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
   mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
-  mwctl verify              Probe /health & OIDC contracts across all 13 MoonWitness services
+  mwctl verify              Probe /health & OIDC contracts across all 17 MoonWitness services
   mwctl profiles            List available composable profiles
   mwctl tunnel              Start Cloudflare Zero-Trust tunnel profile
 EOF
@@ -108,6 +108,7 @@ Available MoonWitness Fleet Profiles:
   epistemic  mw-corpus (:4420), mw-nexus (:4430), mw-lore (:4450)
   portal     mw-mylove (:4460)
   studio     mw-studio (:4470)
+  rocksoul   mw-rocksoul-gateway (:4510), mw-rocksoul-core (:4520), mw-rocksoul-mcp (:4530), mw-rocksoul-sandbox (:4540)
   tunnel     cloudflared (Cloudflare Zero-Trust Tunnel)
   proxy      caddy (Automatic HTTPS reverse proxy via Caddyfile.template)
   full       All profiles combined

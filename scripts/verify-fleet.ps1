@@ -33,8 +33,12 @@ $services = @(
     @{ Name = "mw-nexus";   Url = Resolve-ServiceUrl "MW_NEXUS_URL"   "MW_NEXUS_PORT"   4430 }
     @{ Name = "mw-lore";    Url = Resolve-ServiceUrl "MW_LORE_URL"    "MW_LORE_PORT"    4450 }
     @{ Name = "mw-mylove";  Url = Resolve-ServiceUrl "MW_MYLOVE_URL"  "MW_MYLOVE_PORT"  4460 }
-    @{ Name = "mw-studio";  Url = Resolve-ServiceUrl "MW_STUDIO_URL"  "MW_STUDIO_PORT"  4470 }
-    @{ Name = "mw-rid";     Url = Resolve-ServiceUrl "MW_RID_URL"     "MW_RID_PORT"     4480 }
+    @{ Name = "mw-studio";           Url = Resolve-ServiceUrl "MW_STUDIO_URL"           "MW_STUDIO_PORT"           4470 }
+    @{ Name = "mw-rid";              Url = Resolve-ServiceUrl "MW_RID_URL"              "MW_RID_PORT"              4480 }
+    @{ Name = "mw-rocksoul-gateway"; Url = Resolve-ServiceUrl "MW_ROCKSOUL_GATEWAY_URL" "MW_ROCKSOUL_GATEWAY_PORT" 4510 }
+    @{ Name = "mw-rocksoul-core";    Url = Resolve-ServiceUrl "MW_ROCKSOUL_CORE_URL"    "MW_ROCKSOUL_CORE_PORT"    4520 }
+    @{ Name = "mw-rocksoul-mcp";     Url = Resolve-ServiceUrl "MW_ROCKSOUL_MCP_URL"     "MW_ROCKSOUL_MCP_PORT"     4530 }
+    @{ Name = "mw-rocksoul-sandbox"; Url = Resolve-ServiceUrl "MW_ROCKSOUL_SANDBOX_URL" "MW_ROCKSOUL_SANDBOX_PORT" 4540 }
 )
 
 $ridBaseUrl = Resolve-ServiceUrl "MW_RID_URL" "MW_RID_PORT" 4480
@@ -42,8 +46,8 @@ $contracts = @(
     @{ Name = "mw-rid-oidc"; Endpoint = "$ridBaseUrl/.well-known/openid-configuration" }
 )
 
-Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f "SERVICE", "STATUS", "HTTP", "LATENCY", "ENDPOINT")
-Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f "--------------", "--------", "------", "----------", "----------------------------------")
+Write-Output ("{0,-20} {1,-8} {2,-6} {3,-10} {4}" -f "SERVICE", "STATUS", "HTTP", "LATENCY", "ENDPOINT")
+Write-Output ("{0,-20} {1,-8} {2,-6} {3,-10} {4}" -f "--------------------", "--------", "------", "----------", "----------------------------------")
 
 $okCount = 0
 $totalCount = $services.Count + $contracts.Count
@@ -75,7 +79,7 @@ function Test-FleetEndpoint {
     }
 
     $latency = "$($sw.ElapsedMilliseconds)ms"
-    Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f $Name, $status, $httpCode, $latency, $Endpoint)
+    Write-Output ("{0,-20} {1,-8} {2,-6} {3,-10} {4}" -f $Name, $status, $httpCode, $latency, $Endpoint)
     return $isOk
 }
 

@@ -18,14 +18,18 @@ declare -a SERVICES=(
   "mw-mylove|${MW_MYLOVE_URL:-http://${HOST}:${MW_MYLOVE_PORT:-4460}}"
   "mw-studio|${MW_STUDIO_URL:-http://${HOST}:${MW_STUDIO_PORT:-4470}}"
   "mw-rid|${MW_RID_URL:-http://${HOST}:${MW_RID_PORT:-4480}}"
+  "mw-rocksoul-gateway|${MW_ROCKSOUL_GATEWAY_URL:-http://${HOST}:${MW_ROCKSOUL_GATEWAY_PORT:-4510}}"
+  "mw-rocksoul-core|${MW_ROCKSOUL_CORE_URL:-http://${HOST}:${MW_ROCKSOUL_CORE_PORT:-4520}}"
+  "mw-rocksoul-mcp|${MW_ROCKSOUL_MCP_URL:-http://${HOST}:${MW_ROCKSOUL_MCP_PORT:-4530}}"
+  "mw-rocksoul-sandbox|${MW_ROCKSOUL_SANDBOX_URL:-http://${HOST}:${MW_ROCKSOUL_SANDBOX_PORT:-4540}}"
 )
 
 declare -a CONTRACTS=(
   "mw-rid-oidc|${MW_RID_URL:-http://${HOST}:${MW_RID_PORT:-4480}}/.well-known/openid-configuration"
 )
 
-printf "%-14s %-8s %-6s %-10s %s\n" "SERVICE" "STATUS" "HTTP" "LATENCY" "ENDPOINT"
-printf "%-14s %-8s %-6s %-10s %s\n" "--------------" "--------" "------" "----------" "----------------------------------"
+printf "%-20s %-8s %-6s %-10s %s\n" "SERVICE" "STATUS" "HTTP" "LATENCY" "ENDPOINT"
+printf "%-20s %-8s %-6s %-10s %s\n" "--------------------" "--------" "------" "----------" "----------------------------------"
 
 ok_count=0
 total_count=$(( ${#SERVICES[@]} + ${#CONTRACTS[@]} ))
@@ -48,7 +52,7 @@ probe_endpoint() {
     [[ "$http_code" == "000" ]] && http_code="-"
   fi
 
-  printf "%-14s %-8s %-6s %-10s %s\n" "$name" "$status" "$http_code" "$latency_ms" "$endpoint"
+  printf "%-20s %-8s %-6s %-10s %s\n" "$name" "$status" "$http_code" "$latency_ms" "$endpoint"
 }
 
 for entry in "${SERVICES[@]}"; do
