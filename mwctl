@@ -41,6 +41,7 @@ Usage:
   mwctl logs [service]      Stream logs (all services or a specific service)
   mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
   mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
+  mwctl verify              Probe /health across all 12 MoonWitness sovereign services
   mwctl profiles            List available composable profiles
   mwctl tunnel              Start Cloudflare Zero-Trust tunnel profile
 EOF
@@ -92,6 +93,9 @@ case "$cmd" in
     curl -fsS "${ECHO_URL}/api/disk/drives" \
       -H "Authorization: Bearer ${MW_API_SECRET:-}"
     echo ""
+    ;;
+  verify)
+    exec bash "$STACK_DIR/scripts/verify-fleet.sh" "$@"
     ;;
   profiles)
     cat <<'EOF'

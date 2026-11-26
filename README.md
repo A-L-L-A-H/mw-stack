@@ -50,6 +50,7 @@ mwctl status            # Inspect container status
 mwctl logs [service]    # Tail service logs
 mwctl backup            # Trigger mw-echo /api/storage/backup
 mwctl doctor            # Run mw-echo /api/desktop/doctor & /api/disk/drives
+mwctl verify            # Probe /health across all 12 sovereign services
 mwctl profiles          # Print profile matrix
 mwctl tunnel            # Start Cloudflare tunnel
 ```
