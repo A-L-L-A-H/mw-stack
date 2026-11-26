@@ -251,6 +251,25 @@ services:
       - mw-net
 
   # ---------------------------------------------------------------------------
+  # PORTAL / FULL — Flagship Public Web Portal (A-L-L-A-H.COM)
+  # ---------------------------------------------------------------------------
+  mw-mylove:
+    image: ghcr.io/a-l-l-a-h/mw-mylove:${MW_IMAGE_TAG:-latest}
+    container_name: mw-mylove
+    restart: unless-stopped
+    profiles: ["portal", "full"]
+    ports:
+      - "${MW_MYLOVE_PORT:-4460}:4460"
+    environment:
+      MW_MYLOVE_PORT: "4460"
+      MW_CORPUS_URL: "http://mw-corpus:4420"
+      MW_NEXUS_URL: "http://mw-nexus:4430"
+      MW_LORE_URL: "http://mw-lore:4450"
+      MW_ECHO_URL: "http://mw-echo:4310"
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
   # TUNNEL / FULL — Cloudflare Zero-Trust Tunnel
   # ---------------------------------------------------------------------------
   cloudflared:
