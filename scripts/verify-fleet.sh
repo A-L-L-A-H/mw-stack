@@ -17,18 +17,23 @@ declare -a SERVICES=(
   "mw-lore|${MW_LORE_URL:-http://${HOST}:${MW_LORE_PORT:-4450}}"
   "mw-mylove|${MW_MYLOVE_URL:-http://${HOST}:${MW_MYLOVE_PORT:-4460}}"
   "mw-studio|${MW_STUDIO_URL:-http://${HOST}:${MW_STUDIO_PORT:-4470}}"
+  "mw-rid|${MW_RID_URL:-http://${HOST}:${MW_RID_PORT:-4480}}"
+)
+
+declare -a CONTRACTS=(
+  "mw-rid-oidc|${MW_RID_URL:-http://${HOST}:${MW_RID_PORT:-4480}}/.well-known/openid-configuration"
 )
 
 printf "%-14s %-8s %-6s %-10s %s\n" "SERVICE" "STATUS" "HTTP" "LATENCY" "ENDPOINT"
 printf "%-14s %-8s %-6s %-10s %s\n" "--------------" "--------" "------" "----------" "----------------------------------"
 
 ok_count=0
-total_count="${#SERVICES[@]}"
+total_count=$(( ${#SERVICES[@]} + ${#CONTRACTS[@]} ))
 
-for entry in "${SERVICES[@]}"; do
-  name="${entry%%|*}"
-  base_url="${entry#*|}"
-  endpoint="${base_url%/}/health"
+probe_endpoint() {
+  local name="$1"
+  local endpoint="$2"
+  local probe_out http_code time_sec latency_ms status
 
   probe_out="$(curl -sS -o /dev/null --connect-timeout "$TIMEOUT_SEC" --max-time "$TIMEOUT_SEC" -w "%{http_code} %{time_total}" "$endpoint" 2>/dev/null || echo "000 0.000")"
   http_code="${probe_out%% *}"
@@ -44,6 +49,18 @@ for entry in "${SERVICES[@]}"; do
   fi
 
   printf "%-14s %-8s %-6s %-10s %s\n" "$name" "$status" "$http_code" "$latency_ms" "$endpoint"
+}
+
+for entry in "${SERVICES[@]}"; do
+  name="${entry%%|*}"
+  base_url="${entry#*|}"
+  probe_endpoint "$name" "${base_url%/}/health"
+done
+
+for entry in "${CONTRACTS[@]}"; do
+  name="${entry%%|*}"
+  endpoint="${entry#*|}"
+  probe_endpoint "$name" "$endpoint"
 done
 
 echo ""

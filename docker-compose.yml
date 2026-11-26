@@ -17,6 +17,7 @@ volumes:
   mw_corpus_data:
   mw_nexus_data:
   mw_lore_data:
+  mw_rid_data:
   mw_caddy_data:
   mw_caddy_config:
 
@@ -44,11 +45,41 @@ services:
       MW_LORE_URL: "http://mw-lore:4450"
       MW_MYLOVE_URL: "http://mw-mylove:4460"
       MW_STUDIO_URL: "http://mw-studio:4470"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
       MW_ENCRYPTION_KEY: "${MW_ENCRYPTION_KEY:-}"
     volumes:
       - mw_echo_data:/data
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # ID / OPS / SAAS / FULL — Sovereign OIDC Identity Provider (mw-rid)
+  # ---------------------------------------------------------------------------
+  mw-rid:
+    image: ghcr.io/a-l-l-a-h/mw-rid:${MW_IMAGE_TAG:-latest}
+    container_name: mw-rid
+    restart: unless-stopped
+    profiles: ["id", "ops", "saas", "full"]
+    ports:
+      - "${MW_RID_PORT:-4480}:4480"
+    environment:
+      MW_RID_PORT: "4480"
+      MW_RID_HOST: "0.0.0.0"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_DB_PATH: "/data/rid.sqlite"
+      MW_RID_BOOTSTRAP_SECRET: "${RID_BOOTSTRAP_SECRET:-}"
+      MW_RID_COOKIE_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_rid_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4480/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -66,6 +97,9 @@ services:
       PORT: "4400"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_MISSION_URL: "http://mw-mission:4410"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
     volumes:
       - mw_lab_data:/data
@@ -102,6 +136,9 @@ services:
     environment:
       PORT: "4440"
       MW_ECHO_URL: "http://mw-echo:4310"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
     volumes:
@@ -145,6 +182,9 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-moonwitness}:${POSTGRES_PASSWORD:-moonwitness}@postgres:5432/${POSTGRES_DB:-moonwitness}"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_MISSION_URL: "http://mw-mission:4410"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
     volumes:
       - mw_dock_data:/data
@@ -280,6 +320,9 @@ services:
       MW_NEXUS_URL: "http://mw-nexus:4430"
       MW_LORE_URL: "http://mw-lore:4450"
       MW_ECHO_URL: "http://mw-echo:4310"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
     networks:
       - mw-net
 

@@ -34,28 +34,38 @@ $services = @(
     @{ Name = "mw-lore";    Url = Resolve-ServiceUrl "MW_LORE_URL"    "MW_LORE_PORT"    4450 }
     @{ Name = "mw-mylove";  Url = Resolve-ServiceUrl "MW_MYLOVE_URL"  "MW_MYLOVE_PORT"  4460 }
     @{ Name = "mw-studio";  Url = Resolve-ServiceUrl "MW_STUDIO_URL"  "MW_STUDIO_PORT"  4470 }
+    @{ Name = "mw-rid";     Url = Resolve-ServiceUrl "MW_RID_URL"     "MW_RID_PORT"     4480 }
+)
+
+$ridBaseUrl = Resolve-ServiceUrl "MW_RID_URL" "MW_RID_PORT" 4480
+$contracts = @(
+    @{ Name = "mw-rid-oidc"; Endpoint = "$ridBaseUrl/.well-known/openid-configuration" }
 )
 
 Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f "SERVICE", "STATUS", "HTTP", "LATENCY", "ENDPOINT")
 Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f "--------------", "--------", "------", "----------", "----------------------------------")
 
 $okCount = 0
-$totalCount = $services.Count
+$totalCount = $services.Count + $contracts.Count
 
-foreach ($svc in $services) {
-    $endpoint = "$($svc.Url)/health"
+function Test-FleetEndpoint {
+    param(
+        [string]$Name,
+        [string]$Endpoint
+    )
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $status = "DOWN"
     $httpCode = "-"
+    $isOk = $false
 
     try {
-        $resp = Invoke-WebRequest -Uri $endpoint -Method Get -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction Stop
+        $resp = Invoke-WebRequest -Uri $Endpoint -Method Get -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction Stop
         $sw.Stop()
         $code = [int]$resp.StatusCode
         $httpCode = "$code"
         if ($code -ge 200 -and $code -lt 300) {
             $status = "OK"
-            $okCount++
+            $isOk = $true
         }
     } catch {
         $sw.Stop()
@@ -65,7 +75,20 @@ foreach ($svc in $services) {
     }
 
     $latency = "$($sw.ElapsedMilliseconds)ms"
-    Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f $svc.Name, $status, $httpCode, $latency, $endpoint)
+    Write-Output ("{0,-14} {1,-8} {2,-6} {3,-10} {4}" -f $Name, $status, $httpCode, $latency, $Endpoint)
+    return $isOk
+}
+
+foreach ($svc in $services) {
+    if (Test-FleetEndpoint -Name $svc.Name -Endpoint "$($svc.Url)/health") {
+        $okCount++
+    }
+}
+
+foreach ($contract in $contracts) {
+    if (Test-FleetEndpoint -Name $contract.Name -Endpoint $contract.Endpoint) {
+        $okCount++
+    }
 }
 
 Write-Output ""

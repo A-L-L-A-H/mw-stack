@@ -13,10 +13,10 @@ MoonWitness Sovereign Fleet Installer (mw-stack)
 Usage:
   curl -fsSL https://raw.githubusercontent.com/A-L-L-A-H/mw-stack/main/install.sh | bash
   curl -fsSL https://raw.githubusercontent.com/A-L-L-A-H/mw-stack/main/install.sh | MW_PROFILE=ops bash
-  ./install.sh --profile lite|ops|saas|isp|epistemic|full [--dir /opt/mw-stack] [--no-start]
+  ./install.sh --profile lite|id|ops|saas|isp|epistemic|portal|studio|full [--dir /opt/mw-stack] [--no-start]
 
 Options:
-  --profile <name>   Fleet profile (lite, ops, saas, isp, epistemic, tunnel, proxy, full)
+  --profile <name>   Fleet profile (lite, id, ops, saas, isp, epistemic, portal, studio, tunnel, proxy, full)
   --dir <path>       Installation directory (default: /opt/mw-stack)
   --no-start         Install and configure without starting containers
   -h, --help         Show this help message
@@ -61,9 +61,9 @@ fi
 
 validate_profile() {
   case "$1" in
-    lite|ops|saas|isp|epistemic|tunnel|proxy|full) return 0 ;;
+    lite|id|ops|saas|isp|epistemic|portal|studio|tunnel|proxy|full) return 0 ;;
     *)
-      echo "[mw-stack] Invalid profile '$1'. Allowed: lite, ops, saas, isp, epistemic, tunnel, proxy, full" >&2
+      echo "[mw-stack] Invalid profile '$1'. Allowed: lite, id, ops, saas, isp, epistemic, portal, studio, tunnel, proxy, full" >&2
       exit 1
       ;;
   esac
@@ -73,19 +73,21 @@ if [[ -z "$PROFILE" ]]; then
   if [[ -t 0 ]]; then
     echo "Select MoonWitness deployment profile:"
     echo "  1) lite       - mw-echo core node (:4310)"
-    echo "  2) ops        - mw-echo + mw-lab + mw-mission + mw-cp"
-    echo "  3) saas       - postgres + mw-dock + mw-design + mw-board"
-    echo "  4) isp        - mw-isp (:8091 + RADIUS UDP 1812/1813)"
-    echo "  5) epistemic  - mw-corpus + mw-nexus + mw-lore"
-    echo "  6) full       - all services + caddy proxy + cloudflared tunnel"
+    echo "  2) id         - mw-rid OIDC identity provider (:4480)"
+    echo "  3) ops        - mw-echo + mw-rid + mw-lab + mw-mission + mw-cp"
+    echo "  4) saas       - postgres + mw-rid + mw-dock + mw-design + mw-board"
+    echo "  5) isp        - mw-isp (:8091 + RADIUS UDP 1812/1813)"
+    echo "  6) epistemic  - mw-corpus + mw-nexus + mw-lore"
+    echo "  7) full       - all services + caddy proxy + cloudflared tunnel"
     read -r -p "Profile [lite]: " selected_profile
     case "${selected_profile:-lite}" in
       1|lite) PROFILE="lite" ;;
-      2|ops) PROFILE="ops" ;;
-      3|saas) PROFILE="saas" ;;
-      4|isp) PROFILE="isp" ;;
-      5|epistemic) PROFILE="epistemic" ;;
-      6|full) PROFILE="full" ;;
+      2|id) PROFILE="id" ;;
+      3|ops) PROFILE="ops" ;;
+      4|saas) PROFILE="saas" ;;
+      5|isp) PROFILE="isp" ;;
+      6|epistemic) PROFILE="epistemic" ;;
+      7|full) PROFILE="full" ;;
       *) PROFILE="$selected_profile" ;;
     esac
   else

@@ -41,7 +41,7 @@ Usage:
   mwctl logs [service]      Stream logs (all services or a specific service)
   mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
   mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
-  mwctl verify              Probe /health across all 12 MoonWitness sovereign services
+  mwctl verify              Probe /health & OIDC contracts across all 13 MoonWitness services
   mwctl profiles            List available composable profiles
   mwctl tunnel              Start Cloudflare Zero-Trust tunnel profile
 EOF
@@ -101,8 +101,9 @@ case "$cmd" in
     cat <<'EOF'
 Available MoonWitness Fleet Profiles:
   lite       mw-echo (:4310)
-  ops        mw-echo, mw-lab (:4400), mw-mission (:4410), mw-cp (:4440)
-  saas       postgres, mw-dock (:3000), mw-design (:8080), mw-board (:3001)
+  id         mw-rid (:4480 — Sovereign OIDC Identity Provider)
+  ops        mw-echo, mw-rid (:4480), mw-lab (:4400), mw-mission (:4410), mw-cp (:4440)
+  saas       postgres, mw-rid (:4480), mw-dock (:3000), mw-design (:8080), mw-board (:3001)
   isp        mw-isp (:8091 + UDP 1812/1813)
   epistemic  mw-corpus (:4420), mw-nexus (:4430), mw-lore (:4450)
   portal     mw-mylove (:4460)

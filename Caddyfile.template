@@ -53,3 +53,7 @@ a-l-l-a-h.com {
 studio.{$MW_DOMAIN:mw.local} {
 	reverse_proxy mw-studio:4470
 }
+
+id.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-rid:4480
+}
