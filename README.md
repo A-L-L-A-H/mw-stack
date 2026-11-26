@@ -34,6 +34,8 @@ Docker fleet mode:
 | `saas` | `postgres`, `mw-dock`, `mw-design`, `mw-board` | `:3000`, `:8080`, `:3001` |
 | `isp` | `mw-isp` | `:8091`, `1812/udp`, `1813/udp` |
 | `epistemic` | `mw-corpus`, `mw-nexus`, `mw-lore` | `:4420`, `:4430`, `:4450` |
+| `portal` | `mw-mylove` | `:4460` |
+| `studio` | `mw-studio` | `:4470` |
 | `tunnel` | `cloudflared` | Zero-Trust outbound |
 | `proxy` | `caddy` (`Caddyfile.template`) | `:80`, `:443` |
 | `full` | All profiles combined | All above |

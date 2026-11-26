@@ -101,6 +101,8 @@ Available MoonWitness Fleet Profiles:
   saas       postgres, mw-dock (:3000), mw-design (:8080), mw-board (:3001)
   isp        mw-isp (:8091 + UDP 1812/1813)
   epistemic  mw-corpus (:4420), mw-nexus (:4430), mw-lore (:4450)
+  portal     mw-mylove (:4460)
+  studio     mw-studio (:4470)
   tunnel     cloudflared (Cloudflare Zero-Trust Tunnel)
   proxy      caddy (Automatic HTTPS reverse proxy via Caddyfile.template)
   full       All profiles combined
