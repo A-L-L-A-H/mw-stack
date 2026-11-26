@@ -1,0 +1,287 @@
+name: mw-stack
+
+networks:
+  mw-net:
+    driver: bridge
+
+volumes:
+  mw_echo_data:
+  mw_lab_data:
+  mw_mission_data:
+  mw_cp_data:
+  mw_postgres_data:
+  mw_dock_data:
+  mw_design_data:
+  mw_board_data:
+  mw_isp_data:
+  mw_corpus_data:
+  mw_nexus_data:
+  mw_lore_data:
+  mw_caddy_data:
+  mw_caddy_config:
+
+services:
+  # ---------------------------------------------------------------------------
+  # LITE / OPS / FULL — Sovereign Core Node
+  # ---------------------------------------------------------------------------
+  mw-echo:
+    image: ghcr.io/a-l-l-a-h/mw-echo:${MW_IMAGE_TAG:-latest}
+    container_name: mw-echo
+    restart: unless-stopped
+    profiles: ["lite", "ops", "full"]
+    ports:
+      - "${MW_ECHO_PORT:-4310}:4310"
+    environment:
+      PORT: "4310"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+      MW_ENCRYPTION_KEY: "${MW_ENCRYPTION_KEY:-}"
+    volumes:
+      - mw_echo_data:/data
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # OPS / FULL — Fleet Operations & Control Plane
+  # ---------------------------------------------------------------------------
+  mw-lab:
+    image: ghcr.io/a-l-l-a-h/mw-lab:${MW_IMAGE_TAG:-latest}
+    container_name: mw-lab
+    restart: unless-stopped
+    profiles: ["ops", "full"]
+    ports:
+      - "${MW_LAB_PORT:-4400}:4400"
+    environment:
+      PORT: "4400"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_lab_data:/data
+    depends_on:
+      - mw-echo
+    networks:
+      - mw-net
+
+  mw-mission:
+    image: ghcr.io/a-l-l-a-h/mw-mission:${MW_IMAGE_TAG:-latest}
+    container_name: mw-mission
+    restart: unless-stopped
+    profiles: ["ops", "full"]
+    ports:
+      - "${MW_MISSION_PORT:-4410}:4410"
+    environment:
+      PORT: "4410"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_mission_data:/data
+    depends_on:
+      - mw-echo
+    networks:
+      - mw-net
+
+  mw-cp:
+    image: ghcr.io/a-l-l-a-h/mw-cp:${MW_IMAGE_TAG:-latest}
+    container_name: mw-cp
+    restart: unless-stopped
+    profiles: ["ops", "full"]
+    ports:
+      - "${MW_CP_PORT:-4440}:4440"
+    environment:
+      PORT: "4440"
+      MW_ECHO_URL: "http://mw-echo:4310"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_cp_data:/data
+    depends_on:
+      - mw-echo
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # SAAS / FULL — Postgres + Dock + Design + Board
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: mw-postgres
+    restart: unless-stopped
+    profiles: ["saas", "full"]
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-moonwitness}"
+      POSTGRES_USER: "${POSTGRES_USER:-moonwitness}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-moonwitness}"
+    volumes:
+      - mw_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-moonwitness} -d ${POSTGRES_DB:-moonwitness}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mw-net
+
+  mw-dock:
+    image: ghcr.io/a-l-l-a-h/mw-dock:${MW_IMAGE_TAG:-latest}
+    container_name: mw-dock
+    restart: unless-stopped
+    profiles: ["saas", "full"]
+    ports:
+      - "${MW_DOCK_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-moonwitness}:${POSTGRES_PASSWORD:-moonwitness}@postgres:5432/${POSTGRES_DB:-moonwitness}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_dock_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mw-net
+
+  mw-design:
+    image: ghcr.io/a-l-l-a-h/mw-design:${MW_IMAGE_TAG:-latest}
+    container_name: mw-design
+    restart: unless-stopped
+    profiles: ["saas", "full"]
+    ports:
+      - "${MW_DESIGN_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-moonwitness}:${POSTGRES_PASSWORD:-moonwitness}@postgres:5432/${POSTGRES_DB:-moonwitness}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_design_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mw-net
+
+  mw-board:
+    image: ghcr.io/a-l-l-a-h/mw-xv:${MW_IMAGE_TAG:-latest}
+    container_name: mw-board
+    restart: unless-stopped
+    profiles: ["saas", "full"]
+    ports:
+      - "${MW_BOARD_PORT:-3001}:3001"
+    environment:
+      PORT: "3001"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-moonwitness}:${POSTGRES_PASSWORD:-moonwitness}@postgres:5432/${POSTGRES_DB:-moonwitness}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_board_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # ISP / FULL — Sovereign ISP & RADIUS
+  # ---------------------------------------------------------------------------
+  mw-isp:
+    image: ghcr.io/a-l-l-a-h/mw-isp:${MW_IMAGE_TAG:-latest}
+    container_name: mw-isp
+    restart: unless-stopped
+    profiles: ["isp", "full"]
+    ports:
+      - "${MW_ISP_PORT:-8091}:8091"
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    environment:
+      PORT: "8091"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+      MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+    volumes:
+      - mw_isp_data:/data
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # EPISTEMIC / FULL — Corpus + Nexus + Lore
+  # ---------------------------------------------------------------------------
+  mw-corpus:
+    image: ghcr.io/a-l-l-a-h/mw-corpus:${MW_IMAGE_TAG:-latest}
+    container_name: mw-corpus
+    restart: unless-stopped
+    profiles: ["epistemic", "full"]
+    ports:
+      - "${MW_CORPUS_PORT:-4420}:4420"
+    environment:
+      PORT: "4420"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_corpus_data:/data
+    networks:
+      - mw-net
+
+  mw-nexus:
+    image: ghcr.io/a-l-l-a-h/mw-nexus:${MW_IMAGE_TAG:-latest}
+    container_name: mw-nexus
+    restart: unless-stopped
+    profiles: ["epistemic", "full"]
+    ports:
+      - "${MW_NEXUS_PORT:-4430}:4430"
+    environment:
+      PORT: "4430"
+      MW_CORPUS_URL: "http://mw-corpus:4420"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_nexus_data:/data
+    networks:
+      - mw-net
+
+  mw-lore:
+    image: ghcr.io/a-l-l-a-h/mw-lore:${MW_IMAGE_TAG:-latest}
+    container_name: mw-lore
+    restart: unless-stopped
+    profiles: ["epistemic", "full"]
+    ports:
+      - "${MW_LORE_PORT:-4450}:4450"
+    environment:
+      PORT: "4450"
+      MW_CORPUS_URL: "http://mw-corpus:4420"
+      MW_NEXUS_URL: "http://mw-nexus:4430"
+      MW_API_SECRET: "${MW_API_SECRET:-}"
+    volumes:
+      - mw_lore_data:/data
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # TUNNEL / FULL — Cloudflare Zero-Trust Tunnel
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mw-cloudflared
+    restart: unless-stopped
+    profiles: ["tunnel", "full"]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:-}"
+    networks:
+      - mw-net
+
+  # ---------------------------------------------------------------------------
+  # PROXY / FULL — Caddy Automatic HTTPS Reverse Proxy
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: mw-caddy
+    restart: unless-stopped
+    profiles: ["proxy", "full"]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      MW_DOMAIN: "${MW_DOMAIN:-mw.local}"
+      MW_ACME_EMAIL: "${MW_ACME_EMAIL:-ops@mw.local}"
+    volumes:
+      - ./Caddyfile.template:/etc/caddy/Caddyfile:ro
+      - mw_caddy_data:/data
+      - mw_caddy_config:/config
+    networks:
+      - mw-net

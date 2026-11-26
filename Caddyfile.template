@@ -1,0 +1,47 @@
+{
+	email {$MW_ACME_EMAIL:ops@mw.local}
+}
+
+echo.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-echo:4310
+}
+
+lab.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-lab:4400
+}
+
+mission.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-mission:4410
+}
+
+cp.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-cp:4440
+}
+
+dock.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-dock:3000
+}
+
+board.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-board:3001
+}
+
+design.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-design:8080
+}
+
+isp.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-isp:8091
+}
+
+corpus.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-corpus:4420
+}
+
+nexus.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-nexus:4430
+}
+
+lore.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-lore:4450
+}

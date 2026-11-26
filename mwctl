@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STACK_DIR="${MW_STACK_DIR:-/opt/mw-stack}"
+if [[ ! -f "$STACK_DIR/docker-compose.yml" && -f "./docker-compose.yml" ]]; then
+  STACK_DIR="$(pwd)"
+fi
+
+COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
+ENV_FILE="$STACK_DIR/.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+DEFAULT_PROFILE="${MW_PROFILE:-lite}"
+ECHO_URL="${MW_ECHO_URL:-http://127.0.0.1:${MW_ECHO_PORT:-4310}}"
+
+compose_cmd() {
+  local profile="$1"
+  shift
+  if [[ -f "$ENV_FILE" ]]; then
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --profile "$profile" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" --profile "$profile" "$@"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+mwctl — MoonWitness Sovereign Fleet Operator CLI
+
+Usage:
+  mwctl up [profile]        Start stack (default: MW_PROFILE from .env or 'lite')
+  mwctl down                Stop and remove running containers
+  mwctl update [profile]    Pull latest GHCR images and recreate services
+  mwctl status              Show running fleet containers and health
+  mwctl logs [service]      Stream logs (all services or a specific service)
+  mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
+  mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
+  mwctl profiles            List available composable profiles
+  mwctl tunnel              Start Cloudflare Zero-Trust tunnel profile
+EOF
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  up)
+    profile="${1:-$DEFAULT_PROFILE}"
+    compose_cmd "$profile" up -d --remove-orphans
+    ;;
+  down)
+    compose_cmd "full" down
+    ;;
+  update)
+    profile="${1:-$DEFAULT_PROFILE}"
+    if [[ -d "$STACK_DIR/.git" ]]; then
+      git -C "$STACK_DIR" pull --ff-only origin main || true
+    fi
+    compose_cmd "$profile" pull
+    compose_cmd "$profile" up -d --remove-orphans
+    ;;
+  status)
+    compose_cmd "full" ps
+    ;;
+  logs)
+    service="${1:-}"
+    if [[ -n "$service" ]]; then
+      compose_cmd "full" logs -f --tail=100 "$service"
+    else
+      compose_cmd "full" logs -f --tail=100
+    fi
+    ;;
+  backup)
+    echo "[mwctl] Requesting storage backup from ${ECHO_URL}/api/storage/backup..."
+    curl -fsS -X POST "${ECHO_URL}/api/storage/backup" \
+      -H "Authorization: Bearer ${MW_API_SECRET:-}" \
+      -H "Content-Type: application/json"
+    echo ""
+    ;;
+  doctor)
+    echo "[mwctl] Checking desktop/host doctor (${ECHO_URL}/api/desktop/doctor)..."
+    curl -fsS "${ECHO_URL}/api/desktop/doctor" \
+      -H "Authorization: Bearer ${MW_API_SECRET:-}"
+    echo ""
+    echo "[mwctl] Checking disk drives (${ECHO_URL}/api/disk/drives)..."
+    curl -fsS "${ECHO_URL}/api/disk/drives" \
+      -H "Authorization: Bearer ${MW_API_SECRET:-}"
+    echo ""
+    ;;
+  profiles)
+    cat <<'EOF'
+Available MoonWitness Fleet Profiles:
+  lite       mw-echo (:4310)
+  ops        mw-echo, mw-lab (:4400), mw-mission (:4410), mw-cp (:4440)
+  saas       postgres, mw-dock (:3000), mw-design (:8080), mw-board (:3001)
+  isp        mw-isp (:8091 + UDP 1812/1813)
+  epistemic  mw-corpus (:4420), mw-nexus (:4430), mw-lore (:4450)
+  tunnel     cloudflared (Cloudflare Zero-Trust Tunnel)
+  proxy      caddy (Automatic HTTPS reverse proxy via Caddyfile.template)
+  full       All profiles combined
+EOF
+    ;;
+  tunnel)
+    compose_cmd "tunnel" up -d cloudflared
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "[mwctl] Unknown command: $cmd" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
