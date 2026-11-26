@@ -40,6 +40,8 @@ Usage:
   mwctl status              Show running fleet containers and health
   mwctl logs [service]      Stream logs (all services or a specific service)
   mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
+  mwctl backup-all          Run 3-2-1 encrypted business VPS backup (pg_dump + mw-echo + off-site)
+  mwctl restore-drill       Verify latest encrypted backup archive integrity (non-destructive)
   mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
   mwctl verify              Probe /health & OIDC contracts across all 17 MoonWitness services
   mwctl profiles            List available composable profiles
@@ -84,6 +86,12 @@ case "$cmd" in
       -H "Content-Type: application/json"
     echo ""
     ;;
+  backup-all)
+    exec bash "$STACK_DIR/scripts/backup-business-vps.sh" "$@"
+    ;;
+  restore-drill)
+    exec bash "$STACK_DIR/scripts/restore-business-vps.sh" --verify-only "$@"
+    ;;
   doctor)
     echo "[mwctl] Checking desktop/host doctor (${ECHO_URL}/api/desktop/doctor)..."
     curl -fsS "${ECHO_URL}/api/desktop/doctor" \
@@ -109,6 +117,7 @@ Available MoonWitness Fleet Profiles:
   portal     mw-mylove (:4460)
   studio     mw-studio (:4470)
   rocksoul   mw-rocksoul-gateway (:4510), mw-rocksoul-core (:4520), mw-rocksoul-mcp (:4530), mw-rocksoul-sandbox (:4540)
+  business   All-in-One VPS PaaS+ISP+Billing (caddy, rid, isp, cp, echo, rocksoul-gateway, postgres, board)
   tunnel     cloudflared (Cloudflare Zero-Trust Tunnel)
   proxy      caddy (Automatic HTTPS reverse proxy via Caddyfile.template)
   full       All profiles combined

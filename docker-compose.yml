@@ -31,7 +31,8 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-echo:${MW_IMAGE_TAG:-latest}
     container_name: mw-echo
     restart: unless-stopped
-    profiles: ["lite", "ops", "full"]
+    mem_limit: 128m
+    profiles: ["lite", "ops", "business", "full"]
     ports:
       - "${MW_ECHO_PORT:-4310}:4310"
     environment:
@@ -49,6 +50,7 @@ services:
       MW_STUDIO_URL: "http://mw-studio:4470"
       MW_RID_URL: "http://mw-rid:4480"
       MW_ROCKSOUL_GATEWAY_URL: "http://mw-rocksoul-gateway:4510"
+      ROCKSOUL_GATEWAY_URL: "http://mw-rocksoul-gateway:4510"
       MW_ROCKSOUL_CORE_URL: "http://mw-rocksoul-core:4520"
       MW_ROCKSOUL_MCP_URL: "http://mw-rocksoul-mcp:4530"
       MW_ROCKSOUL_SANDBOX_URL: "http://mw-rocksoul-sandbox:4540"
@@ -57,6 +59,11 @@ services:
       MW_API_SECRET: "${MW_API_SECRET:-}"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
       MW_ENCRYPTION_KEY: "${MW_ENCRYPTION_KEY:-}"
+      NTFY_TOPIC_URL: "${NTFY_TOPIC_URL:-}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
     volumes:
       - mw_echo_data:/data
     networks:
@@ -69,7 +76,8 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-rid:${MW_IMAGE_TAG:-latest}
     container_name: mw-rid
     restart: unless-stopped
-    profiles: ["id", "ops", "saas", "full"]
+    mem_limit: 128m
+    profiles: ["id", "ops", "saas", "business", "full"]
     ports:
       - "${MW_RID_PORT:-4480}:4480"
     environment:
@@ -136,7 +144,8 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-cp:${MW_IMAGE_TAG:-latest}
     container_name: mw-cp
     restart: unless-stopped
-    profiles: ["ops", "full"]
+    mem_limit: 128m
+    profiles: ["ops", "business", "full"]
     ports:
       - "${MW_CP_PORT:-4440}:4440"
     environment:
@@ -161,7 +170,8 @@ services:
     image: postgres:16-alpine
     container_name: mw-postgres
     restart: unless-stopped
-    profiles: ["saas", "full"]
+    mem_limit: 384m
+    profiles: ["saas", "business", "full"]
     environment:
       POSTGRES_DB: "${POSTGRES_DB:-moonwitness}"
       POSTGRES_USER: "${POSTGRES_USER:-moonwitness}"
@@ -223,13 +233,17 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-xv:${MW_IMAGE_TAG:-latest}
     container_name: mw-board
     restart: unless-stopped
-    profiles: ["saas", "full"]
+    mem_limit: 512m
+    profiles: ["saas", "business", "full"]
     ports:
       - "${MW_BOARD_PORT:-3001}:3001"
     environment:
       PORT: "3001"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-moonwitness}:${POSTGRES_PASSWORD:-moonwitness}@postgres:5432/${POSTGRES_DB:-moonwitness}"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
+      MW_TEMPLATES_DIR: "${MW_TEMPLATES_DIR:-/opt/mw-templates}"
+      QDRANT_URL: "${QDRANT_URL:-}"
+      TURSO_DATABASE_URL: "${TURSO_DATABASE_URL:-}"
     volumes:
       - mw_board_data:/data
     depends_on:
@@ -245,11 +259,13 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-isp:${MW_IMAGE_TAG:-latest}
     container_name: mw-isp
     restart: unless-stopped
-    profiles: ["isp", "full"]
+    mem_limit: 128m
+    profiles: ["isp", "business", "full"]
     ports:
       - "${MW_ISP_PORT:-8091}:8091"
       - "1812:1812/udp"
       - "1813:1813/udp"
+      - "3799:3799/udp"
     environment:
       PORT: "8091"
       MW_API_SECRET: "${MW_API_SECRET:-}"
@@ -357,12 +373,18 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-rocksoul-gateway:${MW_IMAGE_TAG:-latest}
     container_name: mw-rocksoul-gateway
     restart: unless-stopped
-    profiles: ["rocksoul", "full"]
+    mem_limit: 128m
+    profiles: ["rocksoul", "business", "full"]
     ports:
       - "${MW_ROCKSOUL_GATEWAY_PORT:-4510}:4510"
     environment:
       PORT: "4510"
       ROCKSOUL_GATEWAY_PORT: "4510"
+      ROCKSOUL_DEFAULT_CLASSIFICATION: "${ROCKSOUL_DEFAULT_CLASSIFICATION:-cloud_eligible}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_RID_URL: "http://mw-rid:4480"
       MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
@@ -469,7 +491,8 @@ services:
     image: caddy:2-alpine
     container_name: mw-caddy
     restart: unless-stopped
-    profiles: ["proxy", "full"]
+    mem_limit: 128m
+    profiles: ["proxy", "business", "full"]
     ports:
       - "80:80"
       - "443:443"
