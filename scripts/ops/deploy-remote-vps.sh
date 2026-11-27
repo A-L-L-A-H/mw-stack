@@ -25,6 +25,7 @@ SKIP_UFW=0
 NO_START=0
 SKIP_RESTORE_DRILL=0
 PHASE1=0
+BUSINESS=0
 
 usage() {
   cat <<'EOF'
@@ -45,6 +46,7 @@ Options:
   --no-start               Stage bundle & config without starting containers
   --skip-restore-drill     Skip non-destructive backup restore drill verification
   --phase1                 Phase 1 cutover/staging for mw-rid (:4480) + mw-echo (:4310) behind Caddy TLS
+  --business               Commercial revenue bundle staging/cutover (mw-mylove, mw-cp + docker-socket-proxy, mw-isp, mw-dock) behind Caddy TLS
   -h, --help               Show this help message
 EOF
 }
@@ -64,6 +66,7 @@ while [[ $# -gt 0 ]]; do
     --no-start) NO_START=1; shift ;;
     --skip-restore-drill) SKIP_RESTORE_DRILL=1; shift ;;
     --phase1) PHASE1=1; shift ;;
+    --business) BUSINESS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[deploy-remote] Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -139,6 +142,15 @@ if [[ "$PHASE1" -eq 1 ]]; then
     run_remote "curl -fsS -o /dev/null -w 'id.${DOMAIN}/healthz=%{http_code}\n' 'https://id.${DOMAIN}/healthz' && curl -fsS -o /dev/null -w 'echo.${DOMAIN}/healthz=%{http_code}\n' 'https://echo.${DOMAIN}/healthz'"
   else
     echo "    [--no-start] Phase 1 bundle staged & compose validated without starting containers."
+  fi
+elif [[ "$BUSINESS" -eq 1 ]]; then
+  echo ">>> [3/5] Validating Commercial Revenue bundle (mw-mylove, mw-cp + docker-socket-proxy, mw-isp, mw-dock behind Caddy TLS)..."
+  run_remote "cd '${REMOTE_STACK_DIR}' && docker compose -f docker-compose.yml -f docker-compose.proxy.yml --profile business config -q && echo '[business] compose+proxy config valid'"
+  if [[ "$NO_START" -eq 0 ]]; then
+    echo "    Starting Commercial Revenue services (docker-socket-proxy, mw-cp, mw-mylove, mw-isp, mw-dock)..."
+    run_remote "cd '${REMOTE_STACK_DIR}' && ${REMOTE_SUDO}docker compose -f docker-compose.yml -f docker-compose.proxy.yml --profile business up -d docker-socket-proxy mw-cp mw-mylove mw-isp mw-dock"
+  else
+    echo "    [--no-start] Commercial Revenue bundle staged & compose+proxy validated without starting containers."
   fi
 else
   echo ">>> [3/5] Executing staged install-business-vps.sh remotely..."

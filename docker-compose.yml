@@ -220,7 +220,7 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-dock:${MW_IMAGE_TAG:-latest}
     container_name: mw-dock
     restart: unless-stopped
-    profiles: ["saas", "full"]
+    profiles: ["saas", "business", "full"]
     ports:
       - "${MW_DOCK_PORT:-3000}:3000"
     environment:
@@ -237,6 +237,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
