@@ -9,22 +9,33 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install commitlint
+        run: npm install -g @commitlint/cli @commitlint/config-conventional
+      - name: Run commitlint
+        run: npx commitlint --from=origin/main --to=HEAD --extends @commitlint/config-conventional
+
   verify:
     name: Verify catalog/scripts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-
-      - name: Check conventional commit messages
-        if: github.event_name == 'pull_request'
-        run: |
-          git log --format=%s origin/main..HEAD | while IFS= read -r msg; do
-            echo "$msg" | grep -qE '^(feat|fix|docs|chore|refactor|test|perf|build|ci|revert|security|deps|style|release)(\(.+\))?!?: .+' || { echo "Invalid: $msg"; exit 1; }
-          done
 
       - name: Shell syntax
         run: |
@@ -37,8 +48,8 @@ jobs:
           if [ -f registry/services.json ]; then node -e 'JSON.parse(require("fs").readFileSync("registry/services.json","utf8"))'; fi
           if [ -f workspace.json ]; then node -e 'JSON.parse(require("fs").readFileSync("workspace.json","utf8"))'; fi
 
-  secret-scan:
-    name: Secret scan
+  security:
+    name: Security
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +57,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v3
         env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
