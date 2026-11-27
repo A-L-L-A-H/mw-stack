@@ -36,3 +36,17 @@ jobs:
           if [ -f scripts/validate-compose-security.mjs ]; then node scripts/validate-compose-security.mjs; fi
           if [ -f registry/services.json ]; then node -e 'JSON.parse(require("fs").readFileSync("registry/services.json","utf8"))'; fi
           if [ -f workspace.json ]; then node -e 'JSON.parse(require("fs").readFileSync("workspace.json","utf8"))'; fi
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
