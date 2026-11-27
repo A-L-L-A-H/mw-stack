@@ -1,5 +1,12 @@
 {
 	email {$MW_ACME_EMAIL:ops@mw.local}
+	on_demand_tls {
+		ask http://mw-cp:4440/paas/caddy/ask
+	}
+}
+
+*.paas.{$MW_DOMAIN:mw.local} {
+	reverse_proxy mw-cp:4440
 }
 
 echo.{$MW_DOMAIN:mw.local} {

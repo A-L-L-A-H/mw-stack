@@ -1,0 +1,92 @@
+{
+  "monitors": [
+    {
+      "friendly_name": "MoonWitness Ingress Caddy",
+      "url": "https://echo.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness RID (OIDC/JWKS)",
+      "url": "https://id.{$MW_DOMAIN}/.well-known/openid-configuration",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Control Plane (mw-cp)",
+      "url": "https://cp.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness ISP & RADIUS API (mw-isp)",
+      "url": "https://isp.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Mission Control (mw-mission)",
+      "url": "https://mission.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Git Forge (mw-lab)",
+      "url": "https://lab.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Epistemic Nexus (mw-nexus)",
+      "url": "https://nexus.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Immutable Corpus (mw-corpus)",
+      "url": "https://corpus.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Narrative Canon (mw-lore)",
+      "url": "https://lore.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Rocksoul Gateway (mw-rocksoul-gateway)",
+      "url": "https://rocksoul-gateway.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    },
+    {
+      "friendly_name": "MoonWitness Rocksoul Core (mw-rocksoul-core)",
+      "url": "https://rocksoul-core.{$MW_DOMAIN}/health",
+      "type": 1,
+      "interval": 300,
+      "timeout": 30,
+      "http_method": 1
+    }
+  ]
+}
