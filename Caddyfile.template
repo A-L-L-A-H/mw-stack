@@ -57,7 +57,7 @@ lore.{$MW_DOMAIN:mw.local} {
 	reverse_proxy mw-lore:4450
 }
 
-a-l-l-a-h.com {
+{$MW_PORTAL_DOMAIN:a-l-l-a-h.com} {
 	reverse_proxy mw-mylove:4460
 }
 
