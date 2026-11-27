@@ -191,6 +191,136 @@ EOF
   fi
 }
 
+cmd_rotate_keys() {
+  local env_file="$ENV_FILE"
+  local backup_dir="${STACK_DIR}/backups/key-rotations"
+  local keys_csv="MW_API_SECRET,MW_JWT_SECRET,MW_ENCRYPTION_KEY"
+  local profile="$DEFAULT_PROFILE"
+  local dry_run="false"
+  local no_restart="false"
+  local rollback_file=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --env-file) env_file="${2:-}"; shift 2 ;;
+      --backup-dir) backup_dir="${2:-}"; shift 2 ;;
+      --keys) keys_csv="${2:-}"; shift 2 ;;
+      --profile|-p) profile="${2:-$DEFAULT_PROFILE}"; shift 2 ;;
+      --dry-run) dry_run="true"; shift ;;
+      --no-restart) no_restart="true"; shift ;;
+      --rollback) rollback_file="${2:-}"; shift 2 ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  mwctl rotate-keys [--env-file <.env>] [--backup-dir <dir>] [--keys K1,K2] [--profile <p>] [--dry-run] [--no-restart]
+  mwctl rotate-keys --rollback <backup-env-file> [--env-file <.env>] [--profile <p>] [--no-restart]
+
+Zero-downtime secret rotation with timestamped SHA-256 rollback backup and
+dual-key (<KEY>_PREVIOUS) grace-period preservation.
+EOF
+        return 0
+        ;;
+      *)
+        echo "[mwctl] ERROR: Unknown rotate-keys option: $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [[ -n "$rollback_file" ]]; then
+    if [[ ! -f "$rollback_file" ]]; then
+      echo "[mwctl] ERROR: Rollback backup not found: $rollback_file" >&2
+      return 1
+    fi
+    if [[ -f "${rollback_file}.sha256" ]]; then
+      local expected actual
+      expected="$(awk '{print $1}' "${rollback_file}.sha256")"
+      actual="$(sha256sum "$rollback_file" | awk '{print $1}')"
+      if [[ "$expected" != "$actual" ]]; then
+        echo "[mwctl] ERROR: Rollback backup checksum mismatch for $rollback_file" >&2
+        return 1
+      fi
+    fi
+    if [[ "$dry_run" == "true" ]]; then
+      echo "[mwctl] [dry-run] Would restore $env_file from $rollback_file"
+      return 0
+    fi
+    local tmp_restore
+    tmp_restore="$(mktemp "${env_file}.restore.XXXXXX")"
+    cp "$rollback_file" "$tmp_restore"
+    chmod 600 "$tmp_restore" 2>/dev/null || true
+    mv -f "$tmp_restore" "$env_file"
+    echo "[mwctl] Rolled back $env_file from $rollback_file"
+    if [[ "$no_restart" != "true" ]]; then
+      compose_cmd "$profile" up -d --no-deps --force-recreate
+    fi
+    return 0
+  fi
+
+  if [[ ! -f "$env_file" ]]; then
+    echo "[mwctl] ERROR: Env file not found: $env_file" >&2
+    return 1
+  fi
+
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local backup_file="${backup_dir}/env-${stamp}.bak"
+  IFS=',' read -r -a key_list <<< "$keys_csv"
+
+  if [[ "$dry_run" == "true" ]]; then
+    echo "[mwctl] [dry-run] Env file: $env_file"
+    echo "[mwctl] [dry-run] Backup target: $backup_file"
+    echo "[mwctl] [dry-run] Keys to rotate: ${key_list[*]}"
+    echo "[mwctl] [dry-run] Dual-key grace variables: $(printf '%s_PREVIOUS ' "${key_list[@]}")"
+    return 0
+  fi
+
+  mkdir -p "$backup_dir"
+  cp "$env_file" "$backup_file"
+  chmod 600 "$backup_file" 2>/dev/null || true
+  sha256sum "$backup_file" > "${backup_file}.sha256"
+
+  local tmp_env
+  tmp_env="$(mktemp "${env_file}.rotate.XXXXXX")"
+  cp "$env_file" "$tmp_env"
+
+  local key old_val new_val
+  for key in "${key_list[@]}"; do
+    key="${key// /}"
+    [[ -z "$key" ]] && continue
+    old_val="$(grep -E "^${key}=" "$tmp_env" | tail -n1 | cut -d'=' -f2- || true)"
+    if command -v openssl >/dev/null 2>&1; then
+      new_val="$(openssl rand -hex 32)"
+    else
+      new_val="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+    fi
+
+    if [[ -n "$old_val" ]]; then
+      if grep -qE "^${key}_PREVIOUS=" "$tmp_env"; then
+        sed -i.bak "s|^${key}_PREVIOUS=.*|${key}_PREVIOUS=${old_val}|" "$tmp_env"
+        rm -f "${tmp_env}.bak"
+      else
+        printf '\n%s_PREVIOUS=%s\n' "$key" "$old_val" >> "$tmp_env"
+      fi
+    fi
+
+    if grep -qE "^${key}=" "$tmp_env"; then
+      sed -i.bak "s|^${key}=.*|${key}=${new_val}|" "$tmp_env"
+      rm -f "${tmp_env}.bak"
+    else
+      printf '%s=%s\n' "$key" "$new_val" >> "$tmp_env"
+    fi
+  done
+
+  chmod 600 "$tmp_env" 2>/dev/null || true
+  mv -f "$tmp_env" "$env_file"
+  echo "[mwctl] Rotated ${#key_list[@]} key(s) in $env_file (rollback backup: $backup_file)"
+
+  if [[ "$no_restart" != "true" ]]; then
+    compose_cmd "$profile" up -d --no-deps --force-recreate
+  fi
+}
+
 usage() {
   cat <<'EOF'
 mwctl — MoonWitness Sovereign Fleet Operator CLI
@@ -202,6 +332,7 @@ Usage:
   mwctl login                 Authenticate Docker with ghcr.io using GHCR_TOKEN (no plaintext storage)
   mwctl save-images [profile] Save local profile images to a gzipped tar archive
   mwctl load-images [opts]    Stream local images (or .tar.gz) to VPS via gzip+ssh tar-pipe
+  mwctl rotate-keys [opts]    Zero-downtime secret rotation with rollback backup and --dry-run
   mwctl status                Show running fleet containers and health
   mwctl logs [service]        Stream logs (all services or a specific service)
   mwctl backup                Trigger mw-echo storage backup (/api/storage/backup)
@@ -246,6 +377,9 @@ case "$cmd" in
     ;;
   load-images)
     cmd_load_images "$@"
+    ;;
+  rotate-keys)
+    cmd_rotate_keys "$@"
     ;;
   status)
     compose_cmd "full" ps
