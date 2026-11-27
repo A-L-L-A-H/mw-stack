@@ -261,10 +261,10 @@ SWEEP_EOF
 
 install_cli_and_backup_cron() {
   $SUDO install -m 0755 "$INSTALL_DIR/mwctl" /usr/local/bin/mwctl
-  $SUDO chmod +x "$INSTALL_DIR/scripts/backup-business-vps.sh" "$INSTALL_DIR/scripts/restore-business-vps.sh"
+  $SUDO chmod +x "$INSTALL_DIR/scripts/ops/backup-business-vps.sh" "$INSTALL_DIR/scripts/ops/restore-business-vps.sh"
   $SUDO mkdir -p /var/backups/mw-stack
   if [[ -d /etc/cron.d ]]; then
-    echo "0 3 * * * root MW_STACK_DIR=${INSTALL_DIR} ${INSTALL_DIR}/scripts/backup-business-vps.sh >> /var/log/mw-stack-backup.log 2>&1" | $SUDO tee /etc/cron.d/mw-stack-backup >/dev/null
+    echo "0 3 * * * root MW_STACK_DIR=${INSTALL_DIR} ${INSTALL_DIR}/scripts/ops/backup-business-vps.sh >> /var/log/mw-stack-backup.log 2>&1" | $SUDO tee /etc/cron.d/mw-stack-backup >/dev/null
     $SUDO chmod 644 /etc/cron.d/mw-stack-backup
   fi
   install_ww_cli_and_sweep_cron

@@ -17,8 +17,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_ROOT = path.resolve(__dirname, '../..');
-const DEFAULT_OUT_DIR = path.resolve(__dirname, '../.sbom');
+const DEFAULT_ROOT = path.resolve(__dirname, '../../..');
+const DEFAULT_OUT_DIR = path.resolve(__dirname, '../../.sbom');
 
 function sha256Hex(content) {
   return crypto.createHash('sha256').update(content).digest('hex');

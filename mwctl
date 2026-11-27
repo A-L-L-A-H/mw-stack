@@ -400,10 +400,10 @@ case "$cmd" in
     echo ""
     ;;
   backup-all)
-    exec bash "$STACK_DIR/scripts/backup-business-vps.sh" "$@"
+    exec bash "$STACK_DIR/scripts/ops/backup-business-vps.sh" "$@"
     ;;
   restore-drill)
-    exec bash "$STACK_DIR/scripts/restore-business-vps.sh" --verify-only "$@"
+    exec bash "$STACK_DIR/scripts/ops/restore-business-vps.sh" --verify-only "$@"
     ;;
   doctor)
     echo "[mwctl] Checking desktop/host doctor (${ECHO_URL}/api/desktop/doctor)..."
@@ -416,7 +416,7 @@ case "$cmd" in
     echo ""
     ;;
   verify)
-    exec bash "$STACK_DIR/scripts/verify-fleet.sh" "$@"
+    exec bash "$STACK_DIR/scripts/ci/verify-fleet.sh" "$@"
     ;;
   profiles)
     cat <<'EOF'

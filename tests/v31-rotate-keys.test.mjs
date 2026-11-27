@@ -83,7 +83,7 @@ test('V31: mwctl rotate-keys supports --dry-run, atomic dual-key rotation, backu
 
 test('V36: scripts/audit-vulns-zero-card.sh supports --dry-run and Trivy + Gitleaks zero-card flow', () => {
   const bash = findBash();
-  const scriptPath = path.join(ROOT, 'scripts', 'audit-vulns-zero-card.sh').replace(/\\/g, '/');
+  const scriptPath = path.join(ROOT, 'scripts', 'ci', 'audit-vulns-zero-card.sh').replace(/\\/g, '/');
   const out = execFileSync(bash, [scriptPath, '--dry-run'], { encoding: 'utf8' });
   assert.match(out, /\[dry-run\] Gitleaks report:/);
   assert.match(out, /\[dry-run\] Trivy FS report:/);

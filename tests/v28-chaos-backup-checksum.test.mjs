@@ -38,12 +38,12 @@ function verifyAndDecryptBackup(ciphertext, expectedSha256, passphrase) {
 }
 
 test('V28: backup-business-vps.sh and restore-business-vps.sh enforce AES-256-CBC + SHA-256 verification', () => {
-  const backupSh = read('scripts/backup-business-vps.sh');
+  const backupSh = read('scripts/ops/backup-business-vps.sh');
   assert.match(backupSh, /pg_dump/);
   assert.match(backupSh, /openssl enc -aes-256-cbc -pbkdf2/);
   assert.match(backupSh, /sha256sum "\$ARCHIVE_ENC" > "\$SUM_FILE"/);
 
-  const restoreSh = read('scripts/restore-business-vps.sh');
+  const restoreSh = read('scripts/ops/restore-business-vps.sh');
   assert.match(restoreSh, /sha256sum -c "\$\{ARCHIVE\}\.sha256"/);
   assert.match(restoreSh, /openssl enc -d -aes-256-cbc -pbkdf2/);
   assert.match(restoreSh, /--verify-only/);

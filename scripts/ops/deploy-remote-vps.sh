@@ -7,7 +7,7 @@ set -euo pipefail
 # executes install-business-vps.sh, verifies UFW rules, and runs mwctl restore-drill.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_STACK_DIR="${MW_STACK_LOCAL_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+LOCAL_STACK_DIR="${MW_STACK_LOCAL_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 LOCAL_TEMPLATES_DIR="${MW_TEMPLATES_LOCAL_DIR:-$(cd "${LOCAL_STACK_DIR}/.." && pwd)/mw-templates}"
 LOCAL_WW_CLI="${MW_WW_CLI_BIN:-$(cd "${LOCAL_STACK_DIR}/.." && pwd)/mw-ww/bin/mw-ww-cli-linux-amd64}"
 
@@ -147,7 +147,7 @@ for arg in "${INSTALL_ARGS[@]}"; do
   QUOTED_INSTALL_ARGS="${QUOTED_INSTALL_ARGS} ${escaped}"
 done
 
-run_remote "${REMOTE_SUDO}env MW_SKIP_REPO_SYNC=1 MW_STACK_DIR='${REMOTE_STACK_DIR}' MW_TEMPLATES_DIR='${REMOTE_TEMPLATES_DIR}' bash '${REMOTE_STACK_DIR}/scripts/install-business-vps.sh'${QUOTED_INSTALL_ARGS}"
+run_remote "${REMOTE_SUDO}env MW_SKIP_REPO_SYNC=1 MW_STACK_DIR='${REMOTE_STACK_DIR}' MW_TEMPLATES_DIR='${REMOTE_TEMPLATES_DIR}' bash '${REMOTE_STACK_DIR}/scripts/ops/install-business-vps.sh'${QUOTED_INSTALL_ARGS}"
 
 echo ">>> [4/5] Verifying remote UFW firewall rules..."
 run_remote "${REMOTE_SUDO}ufw status verbose || true"

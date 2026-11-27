@@ -42,7 +42,7 @@ test('V27: Rocksoul profile services (4510-4540) and Zero-ORM audit contract', (
     assert.match(block, new RegExp(`:${port}"`), `${svc} maps port ${port}`);
   }
 
-  const auditSh = read('scripts/audit-fleet-security.sh');
+  const auditSh = read('scripts/ci/audit-fleet-security.sh');
   assert.match(auditSh, /@moonwitness\/orm-/);
   assert.match(auditSh, /mw-rocksoul-\*/);
 });

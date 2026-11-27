@@ -5,7 +5,7 @@ set -euo pipefail
 # Uses 100% free, local/OSS Trivy + Gitleaks (native binary or Docker fallback).
 # Zero paid SaaS subscriptions, zero API keys required.
 
-STACK_DIR="${MW_STACK_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+STACK_DIR="${MW_STACK_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 REPO_DIR="${STACK_DIR}"
 PROFILE="${MW_PROFILE:-business}"
 SEVERITY="${TRIVY_SEVERITY:-CRITICAL,HIGH}"
@@ -47,7 +47,7 @@ done
 
 if [[ "$INSTALL_CRON" == "true" ]]; then
   CRON_FILE="/etc/cron.d/mw-audit-vulns"
-  CRON_LINE="0 3 * * 0 root ${STACK_DIR}/scripts/audit-vulns-zero-card.sh --repo-dir ${REPO_DIR} --profile ${PROFILE} --output-dir /var/log/mw-audit >> /var/log/mw-audit.log 2>&1"
+  CRON_LINE="0 3 * * 0 root ${STACK_DIR}/scripts/ci/audit-vulns-zero-card.sh --repo-dir ${REPO_DIR} --profile ${PROFILE} --output-dir /var/log/mw-audit >> /var/log/mw-audit.log 2>&1"
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "[audit-vulns] [dry-run] Would write ${CRON_FILE}: ${CRON_LINE}"
     exit 0

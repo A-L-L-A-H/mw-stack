@@ -12,7 +12,7 @@ function read(rel) {
 }
 
 test('V08: deploy-remote-vps.sh uses tar|ssh bundle upload without raw.githubusercontent.com fetch', () => {
-  const src = read('scripts/deploy-remote-vps.sh');
+  const src = read('scripts/ops/deploy-remote-vps.sh');
   assert.doesNotMatch(src, /raw\.githubusercontent\.com/);
   assert.match(src, /tar\s+-C\s+"\$LOCAL_STACK_DIR"[\s\S]*\|/);
   assert.match(src, /--port\)/);
@@ -78,7 +78,7 @@ test('V11: Caddyfile.template parameterizes MW_PORTAL_DOMAIN and preserves on_de
 });
 
 test('V12: install-business-vps.sh installs mw-ww-cli and schedules 02:30 daily sweep cron', () => {
-  const installer = read('scripts/install-business-vps.sh');
+  const installer = read('scripts/ops/install-business-vps.sh');
   assert.match(installer, /\/usr\/local\/bin\/mw-ww-cli/);
   assert.match(installer, /30 2 \* \* \* root/);
   assert.match(installer, /--clean-safe --apply/);

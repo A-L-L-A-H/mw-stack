@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CORE_DIR = path.resolve(__dirname, '../../mw-core');
+const CORE_DIR = path.resolve(__dirname, '../../../mw-core');
 
 const reposPath = path.join(CORE_DIR, 'registry', 'repositories.json');
 const servicesPath = path.join(CORE_DIR, 'registry', 'services.json');

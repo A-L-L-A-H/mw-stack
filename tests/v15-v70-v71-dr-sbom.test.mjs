@@ -19,7 +19,7 @@ import {
   generateCycloneDxSbom,
   generateAttestation,
   runCli,
-} from '../scripts/generate-sbom-attestation.mjs';
+} from '../scripts/release/generate-sbom-attestation.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -48,7 +48,7 @@ function findBash() {
 const BASH = findBash();
 
 test('V15: backup-rclone-321.sh enforces 3-2-1 rclone crypt workflow and passes --dry-run', () => {
-  const script = read('scripts/backup-rclone-321.sh');
+  const script = read('scripts/ops/backup-rclone-321.sh');
   assert.match(script, /rclone copy/);
   assert.match(script, /RCLONE_CRYPT_REMOTE/);
   assert.match(script, /--dry-run/);
@@ -65,7 +65,7 @@ test('V15: backup-rclone-321.sh enforces 3-2-1 rclone crypt workflow and passes 
     const out = execFileSync(
       BASH,
       [
-        toPosixPath(path.join(ROOT, 'scripts/backup-rclone-321.sh')),
+        toPosixPath(path.join(ROOT, 'scripts/ops/backup-rclone-321.sh')),
         '--dry-run',
         '--source',
         toPosixPath(srcDir),
@@ -87,7 +87,7 @@ test('V15: backup-rclone-321.sh enforces 3-2-1 rclone crypt workflow and passes 
 });
 
 test('V70: dr-gameday-drill.sh executes local sandbox restore & tamper verification without VPS credentials', () => {
-  const script = read('scripts/dr-gameday-drill.sh');
+  const script = read('scripts/ops/dr-gameday-drill.sh');
   assert.match(script, /--dry-run/);
   assert.match(script, /sha256sum -c/);
   assert.match(script, /tamperRejected/);
@@ -98,7 +98,7 @@ test('V70: dr-gameday-drill.sh executes local sandbox restore & tamper verificat
     const out = execFileSync(
       BASH,
       [
-        toPosixPath(path.join(ROOT, 'scripts/dr-gameday-drill.sh')),
+        toPosixPath(path.join(ROOT, 'scripts/ops/dr-gameday-drill.sh')),
         '--dry-run',
         '--report',
         toPosixPath(reportPath),
