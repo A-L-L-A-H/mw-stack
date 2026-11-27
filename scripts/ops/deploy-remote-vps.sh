@@ -24,11 +24,12 @@ WITH_TAILSCALE=0
 SKIP_UFW=0
 NO_START=0
 SKIP_RESTORE_DRILL=0
+PHASE1=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/deploy-remote-vps.sh --host <vps-ip-or-tailscale-node> [options]
+  ./scripts/ops/deploy-remote-vps.sh --host <vps-ip-or-tailscale-node> [options]
 
 Options:
   --host <ip|hostname>     Remote host IP or Tailscale MagicDNS name (required)
@@ -43,6 +44,7 @@ Options:
   --skip-ufw               Skip UFW firewall configuration
   --no-start               Stage bundle & config without starting containers
   --skip-restore-drill     Skip non-destructive backup restore drill verification
+  --phase1                 Phase 1 cutover/staging for mw-rid (:4480) + mw-echo (:4310) behind Caddy TLS
   -h, --help               Show this help message
 EOF
 }
@@ -61,6 +63,7 @@ while [[ $# -gt 0 ]]; do
     --skip-ufw) SKIP_UFW=1; shift ;;
     --no-start) NO_START=1; shift ;;
     --skip-restore-drill) SKIP_RESTORE_DRILL=1; shift ;;
+    --phase1) PHASE1=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[deploy-remote] Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -126,28 +129,41 @@ if [[ -f "$LOCAL_WW_CLI" ]]; then
     run_remote "${REMOTE_SUDO}mkdir -p '${REMOTE_STACK_DIR}/bin' && ${REMOTE_SUDO}tar -xzf - -C '${REMOTE_STACK_DIR}/bin' && ${REMOTE_SUDO}chmod 0755 '${REMOTE_STACK_DIR}/bin/$(basename "$LOCAL_WW_CLI")'"
 fi
 
-echo ">>> [3/5] Executing staged install-business-vps.sh remotely..."
-INSTALL_ARGS=(--skip-sync --dir "$REMOTE_STACK_DIR" --domain "$DOMAIN" --email "$ACME_EMAIL")
-if [[ -n "$PORTAL_DOMAIN" ]]; then
-  INSTALL_ARGS+=(--portal-domain "$PORTAL_DOMAIN")
-fi
-if [[ "$WITH_TAILSCALE" -eq 1 ]]; then
-  INSTALL_ARGS+=(--with-tailscale)
-fi
-if [[ "$SKIP_UFW" -eq 1 ]]; then
-  INSTALL_ARGS+=(--skip-ufw)
-fi
-if [[ "$NO_START" -eq 1 ]]; then
-  INSTALL_ARGS+=(--no-start)
-fi
+if [[ "$PHASE1" -eq 1 ]]; then
+  echo ">>> [3/5] Validating Phase 1 (mw-rid :4480 + mw-echo :4310 behind Caddy TLS) compose config..."
+  run_remote "cd '${REMOTE_STACK_DIR}' && docker compose --profile id --profile lite config -q && echo '[phase1] compose config valid'"
+  if [[ "$NO_START" -eq 0 ]]; then
+    echo "    Starting Phase 1 services (mw-rid + mw-echo)..."
+    run_remote "cd '${REMOTE_STACK_DIR}' && ${REMOTE_SUDO}docker compose --profile id --profile lite up -d mw-rid mw-echo"
+    echo "    Probing Phase 1 HTTPS health endpoints behind Caddy TLS..."
+    run_remote "curl -fsS -o /dev/null -w 'id.${DOMAIN}/healthz=%{http_code}\n' 'https://id.${DOMAIN}/healthz' && curl -fsS -o /dev/null -w 'echo.${DOMAIN}/healthz=%{http_code}\n' 'https://echo.${DOMAIN}/healthz'"
+  else
+    echo "    [--no-start] Phase 1 bundle staged & compose validated without starting containers."
+  fi
+else
+  echo ">>> [3/5] Executing staged install-business-vps.sh remotely..."
+  INSTALL_ARGS=(--skip-sync --dir "$REMOTE_STACK_DIR" --domain "$DOMAIN" --email "$ACME_EMAIL")
+  if [[ -n "$PORTAL_DOMAIN" ]]; then
+    INSTALL_ARGS+=(--portal-domain "$PORTAL_DOMAIN")
+  fi
+  if [[ "$WITH_TAILSCALE" -eq 1 ]]; then
+    INSTALL_ARGS+=(--with-tailscale)
+  fi
+  if [[ "$SKIP_UFW" -eq 1 ]]; then
+    INSTALL_ARGS+=(--skip-ufw)
+  fi
+  if [[ "$NO_START" -eq 1 ]]; then
+    INSTALL_ARGS+=(--no-start)
+  fi
 
-QUOTED_INSTALL_ARGS=""
-for arg in "${INSTALL_ARGS[@]}"; do
-  printf -v escaped '%q' "$arg"
-  QUOTED_INSTALL_ARGS="${QUOTED_INSTALL_ARGS} ${escaped}"
-done
+  QUOTED_INSTALL_ARGS=""
+  for arg in "${INSTALL_ARGS[@]}"; do
+    printf -v escaped '%q' "$arg"
+    QUOTED_INSTALL_ARGS="${QUOTED_INSTALL_ARGS} ${escaped}"
+  done
 
-run_remote "${REMOTE_SUDO}env MW_SKIP_REPO_SYNC=1 MW_STACK_DIR='${REMOTE_STACK_DIR}' MW_TEMPLATES_DIR='${REMOTE_TEMPLATES_DIR}' bash '${REMOTE_STACK_DIR}/scripts/ops/install-business-vps.sh'${QUOTED_INSTALL_ARGS}"
+  run_remote "${REMOTE_SUDO}env MW_SKIP_REPO_SYNC=1 MW_STACK_DIR='${REMOTE_STACK_DIR}' MW_TEMPLATES_DIR='${REMOTE_TEMPLATES_DIR}' bash '${REMOTE_STACK_DIR}/scripts/ops/install-business-vps.sh'${QUOTED_INSTALL_ARGS}"
+fi
 
 echo ">>> [4/5] Verifying remote UFW firewall rules..."
 run_remote "${REMOTE_SUDO}ufw status verbose || true"
