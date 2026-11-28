@@ -66,6 +66,11 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
     volumes:
       - mw_echo_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4310/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -109,6 +114,7 @@ services:
       - "${MW_LAB_PORT:-4400}:4400"
     environment:
       PORT: "4400"
+      MW_LAB_ADDR: "0.0.0.0:4400"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_MISSION_URL: "http://mw-mission:4410"
       MW_RID_URL: "http://mw-rid:4480"
@@ -118,7 +124,13 @@ services:
     volumes:
       - mw_lab_data:/data
     depends_on:
-      - mw-echo
+      mw-echo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4400/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -131,12 +143,23 @@ services:
       - "${MW_MISSION_PORT:-4410}:4410"
     environment:
       PORT: "4410"
+      MW_MISSION_ADDR: "0.0.0.0:4410"
+      MW_MISSION_DB: "/data/mw-mission.db"
       MW_ECHO_URL: "http://mw-echo:4310"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
     volumes:
       - mw_mission_data:/data
     depends_on:
-      - mw-echo
+      mw-echo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4410/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:4410/health >/dev/null 2>&1 || bash -c 'exec 3<>/dev/tcp/127.0.0.1/4410 && printf \"GET /health HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -150,6 +173,7 @@ services:
       - "${MW_CP_PORT:-4440}:4440"
     environment:
       PORT: "4440"
+      MW_CONTROL_PLANE_ADDR: "0.0.0.0:4440"
       MW_ECHO_URL: "http://mw-echo:4310"
       MW_RID_URL: "http://mw-rid:4480"
       MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
@@ -159,7 +183,13 @@ services:
     volumes:
       - mw_cp_data:/data
     depends_on:
-      - mw-echo
+      mw-echo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4440/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -190,7 +220,7 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-dock:${MW_IMAGE_TAG:-latest}
     container_name: mw-dock
     restart: unless-stopped
-    profiles: ["saas", "full"]
+    profiles: ["saas", "business", "full"]
     ports:
       - "${MW_DOCK_PORT:-3000}:3000"
     environment:
@@ -207,6 +237,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -261,6 +296,7 @@ services:
     restart: unless-stopped
     mem_limit: 128m
     profiles: ["isp", "business", "full"]
+    command: ["--http-addr", "0.0.0.0:8091", "--db-path", "/data/isp.db"]
     ports:
       - "${MW_ISP_PORT:-8091}:8091"
       - "1812:1812/udp"
@@ -268,10 +304,18 @@ services:
       - "3799:3799/udp"
     environment:
       PORT: "8091"
+      MW_RID_URL: "http://mw-rid:4480"
+      MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
+      MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
       MW_API_SECRET: "${MW_API_SECRET:-}"
       MW_JWT_SECRET: "${MW_JWT_SECRET:-}"
     volumes:
       - mw_isp_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8091/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:8091/health >/dev/null 2>&1 || bash -c 'exec 3<>/dev/tcp/127.0.0.1/8091 && printf \"GET /health HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -333,7 +377,8 @@ services:
     image: ghcr.io/a-l-l-a-h/mw-mylove:${MW_IMAGE_TAG:-latest}
     container_name: mw-mylove
     restart: unless-stopped
-    profiles: ["portal", "full"]
+    mem_limit: 128m
+    profiles: ["portal", "business", "full"]
     ports:
       - "${MW_MYLOVE_PORT:-4460}:4460"
     environment:
@@ -345,6 +390,11 @@ services:
       MW_RID_URL: "http://mw-rid:4480"
       MW_RID_ISSUER: "https://id.${MW_DOMAIN:-mw.local}"
       MW_RID_JWKS_URL: "http://mw-rid:4480/jwks"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4460/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mw-net
 
@@ -499,6 +549,7 @@ services:
       - "443:443/udp"
     environment:
       MW_DOMAIN: "${MW_DOMAIN:-mw.local}"
+      MW_PORTAL_DOMAIN: "${MW_PORTAL_DOMAIN:-a-l-l-a-h.com}"
       MW_ACME_EMAIL: "${MW_ACME_EMAIL:-ops@mw.local}"
     volumes:
       - ./Caddyfile.template:/etc/caddy/Caddyfile:ro

@@ -74,8 +74,8 @@ Assert-Test "PaaS quota management, Coolify template deploy & backup/restore dri
     $cpDir = "Z:\repo\mw-cp"
     if (-not (Test-Path $cpDir)) { throw "mw-cp directory missing" }
 
-    $backupScript = Join-Path $StackDir "scripts\backup-business-vps.sh"
-    $restoreScript = Join-Path $StackDir "scripts\restore-business-vps.sh"
+    $backupScript = Join-Path $StackDir "scripts\ops\backup-business-vps.sh"
+    $restoreScript = Join-Path $StackDir "scripts\ops\restore-business-vps.sh"
     if (-not (Test-Path $backupScript)) { throw "backup-business-vps.sh missing" }
     if (-not (Test-Path $restoreScript)) { throw "restore-business-vps.sh missing" }
 
@@ -112,7 +112,7 @@ Assert-Test "Notification offload (ntfy/Resend) & mw-pocket rocksoul approval ch
 
 # 5. mw-core zero-collision
 Assert-Test "mw-core registry zero-collision & non-operational invariant" {
-    $validator = Join-Path $StackDir "scripts\validate-core-registry.mjs"
+    $validator = Join-Path $StackDir "scripts\ci\validate-core-registry.mjs"
     if (-not (Test-Path $validator)) { throw "validate-core-registry.mjs missing" }
 
     $out = & node $validator

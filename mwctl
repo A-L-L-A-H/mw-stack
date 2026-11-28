@@ -7,6 +7,7 @@ if [[ ! -f "$STACK_DIR/docker-compose.yml" && -f "./docker-compose.yml" ]]; then
 fi
 
 COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
+PROXY_COMPOSE_FILE="$STACK_DIR/docker-compose.proxy.yml"
 ENV_FILE="$STACK_DIR/.env"
 
 if [[ -f "$ENV_FILE" ]]; then
@@ -22,10 +23,301 @@ ECHO_URL="${MW_ECHO_URL:-http://127.0.0.1:${MW_ECHO_PORT:-4310}}"
 compose_cmd() {
   local profile="$1"
   shift
+  local -a compose_files=(-f "$COMPOSE_FILE")
+  if [[ -f "$PROXY_COMPOSE_FILE" ]]; then
+    compose_files+=(-f "$PROXY_COMPOSE_FILE")
+  fi
   if [[ -f "$ENV_FILE" ]]; then
-    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" --profile "$profile" "$@"
+    docker compose "${compose_files[@]}" --env-file "$ENV_FILE" --profile "$profile" "$@"
   else
-    docker compose -f "$COMPOSE_FILE" --profile "$profile" "$@"
+    docker compose "${compose_files[@]}" --profile "$profile" "$@"
+  fi
+}
+
+ghcr_login_if_configured() {
+  local token="${GHCR_TOKEN:-}"
+  local user="${GHCR_USER:-A-L-L-A-H}"
+  if [[ -n "$token" ]]; then
+    echo "[mwctl] Authenticating with ghcr.io as ${user} via GHCR_TOKEN..."
+    printf '%s' "$token" | docker login ghcr.io -u "$user" --password-stdin >/dev/null
+  fi
+}
+
+resolve_profile_images() {
+  local profile="$1"
+  shift || true
+  if [[ $# -gt 0 ]]; then
+    printf '%s\n' "$@"
+    return 0
+  fi
+  compose_cmd "$profile" config --images
+}
+
+filter_existing_local_images() {
+  local img
+  while IFS= read -r img; do
+    [[ -z "$img" ]] && continue
+    if docker image inspect "$img" >/dev/null 2>&1; then
+      printf '%s\n' "$img"
+    fi
+  done
+}
+
+cmd_save_images() {
+  local profile="${MW_PROFILE:-business}"
+  local output_path=""
+  local -a explicit_images=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --profile|-p) profile="${2:-business}"; shift 2 ;;
+      --output|-o) output_path="${2:-}"; shift 2 ;;
+      lite|id|ops|saas|isp|epistemic|portal|studio|rocksoul|business|tunnel|proxy|full)
+        profile="$1"; shift ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  mwctl save-images [profile] [--output <file.tar.gz|->] [image...]
+
+Saves locally built/pulled Docker images for the given profile (default: business)
+into a gzip-compressed tar archive (or stdout when --output - or piped).
+EOF
+        return 0
+        ;;
+      *) explicit_images+=("$1"); shift ;;
+    esac
+  done
+
+  if [[ -z "$output_path" ]]; then
+    if [[ -t 1 ]]; then
+      output_path="mw-images-${profile}.tar.gz"
+    else
+      output_path="-"
+    fi
+  fi
+
+  mapfile -t images < <(resolve_profile_images "$profile" "${explicit_images[@]}" | filter_existing_local_images)
+  if [[ ${#images[@]} -eq 0 ]]; then
+    echo "[mwctl] ERROR: No local Docker images found for profile '${profile}'." >&2
+    return 1
+  fi
+
+  if [[ "$output_path" == "-" ]]; then
+    docker save "${images[@]}" | gzip -c
+  else
+    echo "[mwctl] Saving ${#images[@]} image(s) for profile '${profile}' -> ${output_path}..." >&2
+    docker save "${images[@]}" | gzip -c > "$output_path"
+    echo "[mwctl] Saved ${output_path}." >&2
+  fi
+}
+
+cmd_load_images() {
+  local profile="${MW_PROFILE:-business}"
+  local input_path=""
+  local remote_host=""
+  local remote_port="${SSH_PORT:-22}"
+  local ssh_user="${SSH_USER:-root}"
+  local ssh_key="${SSH_KEY:-}"
+  local -a explicit_images=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --host) remote_host="${2:-}"; shift 2 ;;
+      --user) ssh_user="${2:-root}"; shift 2 ;;
+      --port) remote_port="${2:-22}"; shift 2 ;;
+      --key) ssh_key="${2:-}"; shift 2 ;;
+      --profile|-p) profile="${2:-business}"; shift 2 ;;
+      --input|-i) input_path="${2:-}"; shift 2 ;;
+      -) input_path="-"; shift ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  mwctl load-images --host <vps> [--user root] [--port 22] [--key <id_file>] [--profile business] [--input <file.tar.gz>] [image...]
+  mwctl load-images [--input <file.tar.gz|->]
+
+Streams locally built Docker images (or a pre-saved .tar.gz) to a remote VPS
+over gzip+ssh tar-pipe (`docker save | gzip | ssh 'gzip -dc | docker load'`),
+or loads a .tar.gz archive / stdin locally when --host is omitted.
+EOF
+        return 0
+        ;;
+      *) explicit_images+=("$1"); shift ;;
+    esac
+  done
+
+  if [[ -n "$remote_host" ]]; then
+    local -a ssh_opts=(-p "$remote_port" -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10")
+    if [[ -n "$ssh_key" ]]; then
+      ssh_opts+=(-i "$ssh_key")
+    fi
+    local remote_sudo=""
+    if [[ "$ssh_user" != "root" ]]; then
+      remote_sudo="sudo "
+    fi
+
+    if [[ -n "$input_path" ]]; then
+      if [[ "$input_path" == "-" ]]; then
+        echo "[mwctl] Streaming stdin tar.gz -> ${ssh_user}@${remote_host}:${remote_port}..." >&2
+        ssh "${ssh_opts[@]}" "${ssh_user}@${remote_host}" "gzip -dc | ${remote_sudo}docker load"
+      else
+        if [[ ! -f "$input_path" ]]; then
+          echo "[mwctl] ERROR: Archive not found: $input_path" >&2
+          return 1
+        fi
+        echo "[mwctl] Streaming ${input_path} -> ${ssh_user}@${remote_host}:${remote_port}..." >&2
+        ssh "${ssh_opts[@]}" "${ssh_user}@${remote_host}" "gzip -dc | ${remote_sudo}docker load" < "$input_path"
+      fi
+    else
+      mapfile -t images < <(resolve_profile_images "$profile" "${explicit_images[@]}" | filter_existing_local_images)
+      if [[ ${#images[@]} -eq 0 ]]; then
+        echo "[mwctl] ERROR: No local Docker images found for profile '${profile}'." >&2
+        return 1
+      fi
+      echo "[mwctl] Streaming ${#images[@]} local image(s) (${profile}) -> ${ssh_user}@${remote_host}:${remote_port} via gzip+ssh..." >&2
+      docker save "${images[@]}" | gzip -c | ssh "${ssh_opts[@]}" "${ssh_user}@${remote_host}" "gzip -dc | ${remote_sudo}docker load"
+    fi
+    echo "[mwctl] Remote docker load complete." >&2
+    return 0
+  fi
+
+  if [[ -z "$input_path" || "$input_path" == "-" ]]; then
+    gzip -dc | docker load
+  else
+    if [[ ! -f "$input_path" ]]; then
+      echo "[mwctl] ERROR: Archive not found: $input_path" >&2
+      return 1
+    fi
+    gzip -dc "$input_path" | docker load
+  fi
+}
+
+cmd_rotate_keys() {
+  local env_file="$ENV_FILE"
+  local backup_dir="${STACK_DIR}/backups/key-rotations"
+  local keys_csv="MW_API_SECRET,MW_JWT_SECRET,MW_ENCRYPTION_KEY"
+  local profile="$DEFAULT_PROFILE"
+  local dry_run="false"
+  local no_restart="false"
+  local rollback_file=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --env-file) env_file="${2:-}"; shift 2 ;;
+      --backup-dir) backup_dir="${2:-}"; shift 2 ;;
+      --keys) keys_csv="${2:-}"; shift 2 ;;
+      --profile|-p) profile="${2:-$DEFAULT_PROFILE}"; shift 2 ;;
+      --dry-run) dry_run="true"; shift ;;
+      --no-restart) no_restart="true"; shift ;;
+      --rollback) rollback_file="${2:-}"; shift 2 ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  mwctl rotate-keys [--env-file <.env>] [--backup-dir <dir>] [--keys K1,K2] [--profile <p>] [--dry-run] [--no-restart]
+  mwctl rotate-keys --rollback <backup-env-file> [--env-file <.env>] [--profile <p>] [--no-restart]
+
+Zero-downtime secret rotation with timestamped SHA-256 rollback backup and
+dual-key (<KEY>_PREVIOUS) grace-period preservation.
+EOF
+        return 0
+        ;;
+      *)
+        echo "[mwctl] ERROR: Unknown rotate-keys option: $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [[ -n "$rollback_file" ]]; then
+    if [[ ! -f "$rollback_file" ]]; then
+      echo "[mwctl] ERROR: Rollback backup not found: $rollback_file" >&2
+      return 1
+    fi
+    if [[ -f "${rollback_file}.sha256" ]]; then
+      local expected actual
+      expected="$(awk '{print $1}' "${rollback_file}.sha256")"
+      actual="$(sha256sum "$rollback_file" | awk '{print $1}')"
+      if [[ "$expected" != "$actual" ]]; then
+        echo "[mwctl] ERROR: Rollback backup checksum mismatch for $rollback_file" >&2
+        return 1
+      fi
+    fi
+    if [[ "$dry_run" == "true" ]]; then
+      echo "[mwctl] [dry-run] Would restore $env_file from $rollback_file"
+      return 0
+    fi
+    local tmp_restore
+    tmp_restore="$(mktemp "${env_file}.restore.XXXXXX")"
+    cp "$rollback_file" "$tmp_restore"
+    chmod 600 "$tmp_restore" 2>/dev/null || true
+    mv -f "$tmp_restore" "$env_file"
+    echo "[mwctl] Rolled back $env_file from $rollback_file"
+    if [[ "$no_restart" != "true" ]]; then
+      compose_cmd "$profile" up -d --no-deps --force-recreate
+    fi
+    return 0
+  fi
+
+  if [[ ! -f "$env_file" ]]; then
+    echo "[mwctl] ERROR: Env file not found: $env_file" >&2
+    return 1
+  fi
+
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local backup_file="${backup_dir}/env-${stamp}.bak"
+  IFS=',' read -r -a key_list <<< "$keys_csv"
+
+  if [[ "$dry_run" == "true" ]]; then
+    echo "[mwctl] [dry-run] Env file: $env_file"
+    echo "[mwctl] [dry-run] Backup target: $backup_file"
+    echo "[mwctl] [dry-run] Keys to rotate: ${key_list[*]}"
+    echo "[mwctl] [dry-run] Dual-key grace variables: $(printf '%s_PREVIOUS ' "${key_list[@]}")"
+    return 0
+  fi
+
+  mkdir -p "$backup_dir"
+  cp "$env_file" "$backup_file"
+  chmod 600 "$backup_file" 2>/dev/null || true
+  sha256sum "$backup_file" > "${backup_file}.sha256"
+
+  local tmp_env
+  tmp_env="$(mktemp "${env_file}.rotate.XXXXXX")"
+  cp "$env_file" "$tmp_env"
+
+  local key old_val new_val
+  for key in "${key_list[@]}"; do
+    key="${key// /}"
+    [[ -z "$key" ]] && continue
+    old_val="$(grep -E "^${key}=" "$tmp_env" | tail -n1 | cut -d'=' -f2- || true)"
+    if command -v openssl >/dev/null 2>&1; then
+      new_val="$(openssl rand -hex 32)"
+    else
+      new_val="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+    fi
+
+    if [[ -n "$old_val" ]]; then
+      if grep -qE "^${key}_PREVIOUS=" "$tmp_env"; then
+        sed -i.bak "s|^${key}_PREVIOUS=.*|${key}_PREVIOUS=${old_val}|" "$tmp_env"
+        rm -f "${tmp_env}.bak"
+      else
+        printf '\n%s_PREVIOUS=%s\n' "$key" "$old_val" >> "$tmp_env"
+      fi
+    fi
+
+    if grep -qE "^${key}=" "$tmp_env"; then
+      sed -i.bak "s|^${key}=.*|${key}=${new_val}|" "$tmp_env"
+      rm -f "${tmp_env}.bak"
+    else
+      printf '%s=%s\n' "$key" "$new_val" >> "$tmp_env"
+    fi
+  done
+
+  chmod 600 "$tmp_env" 2>/dev/null || true
+  mv -f "$tmp_env" "$env_file"
+  echo "[mwctl] Rotated ${#key_list[@]} key(s) in $env_file (rollback backup: $backup_file)"
+
+  if [[ "$no_restart" != "true" ]]; then
+    compose_cmd "$profile" up -d --no-deps --force-recreate
   fi
 }
 
@@ -34,18 +326,22 @@ usage() {
 mwctl — MoonWitness Sovereign Fleet Operator CLI
 
 Usage:
-  mwctl up [profile]        Start stack (default: MW_PROFILE from .env or 'lite')
-  mwctl down                Stop and remove running containers
-  mwctl update [profile]    Pull latest GHCR images and recreate services
-  mwctl status              Show running fleet containers and health
-  mwctl logs [service]      Stream logs (all services or a specific service)
-  mwctl backup              Trigger mw-echo storage backup (/api/storage/backup)
-  mwctl backup-all          Run 3-2-1 encrypted business VPS backup (pg_dump + mw-echo + off-site)
-  mwctl restore-drill       Verify latest encrypted backup archive integrity (non-destructive)
-  mwctl doctor              Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
-  mwctl verify              Probe /health & OIDC contracts across all 17 MoonWitness services
-  mwctl profiles            List available composable profiles
-  mwctl tunnel              Start Cloudflare Zero-Trust tunnel profile
+  mwctl up [profile]          Start stack (default: MW_PROFILE from .env or 'lite')
+  mwctl down                  Stop and remove running containers
+  mwctl update [profile]      Pull latest GHCR images (uses GHCR_TOKEN if set) and recreate services
+  mwctl login                 Authenticate Docker with ghcr.io using GHCR_TOKEN (no plaintext storage)
+  mwctl save-images [profile] Save local profile images to a gzipped tar archive
+  mwctl load-images [opts]    Stream local images (or .tar.gz) to VPS via gzip+ssh tar-pipe
+  mwctl rotate-keys [opts]    Zero-downtime secret rotation with rollback backup and --dry-run
+  mwctl status                Show running fleet containers and health
+  mwctl logs [service]        Stream logs (all services or a specific service)
+  mwctl backup                Trigger mw-echo storage backup (/api/storage/backup)
+  mwctl backup-all            Run 3-2-1 encrypted business VPS backup (pg_dump + mw-echo + off-site)
+  mwctl restore-drill         Verify latest encrypted backup archive integrity (non-destructive)
+  mwctl doctor                Run mw-echo host & disk diagnostics (/api/desktop/doctor, /api/disk/drives)
+  mwctl verify                Probe /health & OIDC contracts across all 17 MoonWitness services
+  mwctl profiles              List available composable profiles
+  mwctl tunnel                Start Cloudflare Zero-Trust tunnel profile
 EOF
 }
 
@@ -60,13 +356,30 @@ case "$cmd" in
   down)
     compose_cmd "full" down
     ;;
+  login)
+    if [[ -z "${GHCR_TOKEN:-}" ]]; then
+      echo "[mwctl] ERROR: GHCR_TOKEN environment variable is required for 'mwctl login'." >&2
+      exit 1
+    fi
+    ghcr_login_if_configured
+    ;;
   update)
     profile="${1:-$DEFAULT_PROFILE}"
     if [[ -d "$STACK_DIR/.git" ]]; then
       git -C "$STACK_DIR" pull --ff-only origin main || true
     fi
+    ghcr_login_if_configured
     compose_cmd "$profile" pull
     compose_cmd "$profile" up -d --remove-orphans
+    ;;
+  save-images)
+    cmd_save_images "$@"
+    ;;
+  load-images)
+    cmd_load_images "$@"
+    ;;
+  rotate-keys)
+    cmd_rotate_keys "$@"
     ;;
   status)
     compose_cmd "full" ps
@@ -87,10 +400,10 @@ case "$cmd" in
     echo ""
     ;;
   backup-all)
-    exec bash "$STACK_DIR/scripts/backup-business-vps.sh" "$@"
+    exec bash "$STACK_DIR/scripts/ops/backup-business-vps.sh" "$@"
     ;;
   restore-drill)
-    exec bash "$STACK_DIR/scripts/restore-business-vps.sh" --verify-only "$@"
+    exec bash "$STACK_DIR/scripts/ops/restore-business-vps.sh" --verify-only "$@"
     ;;
   doctor)
     echo "[mwctl] Checking desktop/host doctor (${ECHO_URL}/api/desktop/doctor)..."
@@ -103,21 +416,21 @@ case "$cmd" in
     echo ""
     ;;
   verify)
-    exec bash "$STACK_DIR/scripts/verify-fleet.sh" "$@"
+    exec bash "$STACK_DIR/scripts/ci/verify-fleet.sh" "$@"
     ;;
   profiles)
     cat <<'EOF'
 Available MoonWitness Fleet Profiles:
   lite       mw-echo (:4310)
   id         mw-rid (:4480 — Sovereign OIDC Identity Provider)
-  ops        mw-echo, mw-rid (:4480), mw-lab (:4400), mw-mission (:4410), mw-cp (:4440)
+  ops        mw-echo, mw-rid (:4480), mw-lab (:4400), mw-mission (:4410), mw-cp (:4440), docker-socket-proxy
   saas       postgres, mw-rid (:4480), mw-dock (:3000), mw-design (:8080), mw-board (:3001)
   isp        mw-isp (:8091 + UDP 1812/1813)
   epistemic  mw-corpus (:4420), mw-nexus (:4430), mw-lore (:4450)
   portal     mw-mylove (:4460)
   studio     mw-studio (:4470)
   rocksoul   mw-rocksoul-gateway (:4510), mw-rocksoul-core (:4520), mw-rocksoul-mcp (:4530), mw-rocksoul-sandbox (:4540)
-  business   All-in-One VPS PaaS+ISP+Billing (caddy, rid, isp, cp, echo, rocksoul-gateway, postgres, board)
+  business   All-in-One VPS PaaS+ISP+Billing (caddy, rid, isp, cp, docker-socket-proxy, echo, mylove, rocksoul-gateway, postgres, board)
   tunnel     cloudflared (Cloudflare Zero-Trust Tunnel)
   proxy      caddy (Automatic HTTPS reverse proxy via Caddyfile.template)
   full       All profiles combined

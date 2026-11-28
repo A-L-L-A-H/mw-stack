@@ -26,7 +26,11 @@ cp.{$MW_DOMAIN:mw.local} {
 }
 
 dock.{$MW_DOMAIN:mw.local} {
-	reverse_proxy mw-dock:3000
+	# Dock realtime uses Server-Sent Events on /api/v1/dock/realtime.
+	# Disable response buffering so connected/heartbeat frames flush immediately.
+	reverse_proxy mw-dock:3000 {
+		flush_interval -1
+	}
 }
 
 board.{$MW_DOMAIN:mw.local} {
@@ -53,7 +57,7 @@ lore.{$MW_DOMAIN:mw.local} {
 	reverse_proxy mw-lore:4450
 }
 
-a-l-l-a-h.com {
+{$MW_PORTAL_DOMAIN:a-l-l-a-h.com} {
 	reverse_proxy mw-mylove:4460
 }
 
